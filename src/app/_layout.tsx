@@ -14,7 +14,7 @@ export default function RootLayout() {
           headerShown: false,
           tabBarStyle: styles.tabBar,
           tabBarBackground: () => (
-            <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+            <BlurView tint="light" intensity={60} style={StyleSheet.absoluteFill} />
           ),
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textMuted,
@@ -49,14 +49,20 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    elevation: 0,
-    backgroundColor: 'transparent',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    height: 85,
-    paddingTop: 15,
+    bottom: 24,
+    left: 24,
+    right: 24,
+    elevation: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.40)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.50)',
+    height: 64,
+    paddingBottom: 0,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    overflow: 'hidden',
   },
 });

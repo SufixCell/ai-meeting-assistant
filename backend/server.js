@@ -15,9 +15,14 @@ app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 
 // Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai;
+if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+} else {
+  console.warn("Warning: OPENAI_API_KEY is missing or set to placeholder. Transcription & summarization will fail until configured in .env.");
+}
 
 // Initialize Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -47,6 +52,9 @@ app.post('/api/process-meeting', upload.single('audio'), async (req, res) => {
     console.log(`Processing meeting: ${title} (File: ${req.file.originalname})`);
 
     // 1. Transcribe with OpenAI Whisper
+    if (!openai) {
+      return res.status(500).json({ error: 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your backend .env file.' });
+    }
     console.log('Sending to Whisper API for transcription...');
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioFilePath),

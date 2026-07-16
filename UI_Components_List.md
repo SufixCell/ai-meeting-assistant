@@ -2,7 +2,6 @@
 
 -[Animated Content] - https://www.reactbits.dev/animations/animated-content
 -[https://21st.dev/] - hover-glare-card
--[https://21st.dev/] - Card Carousel
 -[https://21st.dev/] - Glassmorphism Minimal Metrics
 -[https://21st.dev/] - Voice Recording
 -[https://21st.dev/] - Waveform
