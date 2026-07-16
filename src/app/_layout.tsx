@@ -1,3 +1,4 @@
+import './global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { ThemeProvider } from '../theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';

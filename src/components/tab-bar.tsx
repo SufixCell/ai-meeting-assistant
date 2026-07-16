@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
     right: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 50,
   },
   tabBarWrapper: {
     width: TAB_BAR_WIDTH,

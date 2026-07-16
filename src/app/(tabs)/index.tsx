@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 80,
     paddingHorizontal: 24,
+    overflow: 'hidden',
   },
   header: {
     alignItems: 'center',
