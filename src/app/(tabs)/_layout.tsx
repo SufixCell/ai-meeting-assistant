@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../theme';
 import { Home, Settings, Clock } from 'lucide-react-native';
-import { CustomTabBar } from '../../components/tab-bar';
+import { FloatingNav } from '../../components/ui/floating-nav';
 
 export default function TabsLayout() {
   const { theme } = useTheme();
@@ -10,7 +10,7 @@ export default function TabsLayout() {
     <>
       <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
       <Tabs
-        tabBar={(props) => <CustomTabBar {...props} />}
+        tabBar={(props) => <FloatingNav {...props} />}
         screenOptions={{
           headerShown: false,
         }}>
