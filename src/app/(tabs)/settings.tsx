@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { useTheme } from '../../theme';
-import { Moon, Sun, Briefcase, LogOut, ChevronRight, User as UserIcon } from 'lucide-react-native';
+import { Moon, Sun, Briefcase, LogOut, ChevronRight, User as UserIcon, Phone, Mail } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function SettingsScreen() {
   const { theme, setThemeName } = useTheme();
   const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setProfile(data);
+        });
+    }
+  }, [user]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -26,7 +40,21 @@ export default function SettingsScreen() {
             <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
               <UserIcon size={20} color={theme.colors.primary} />
             </View>
-            <Text style={[styles.rowText, { color: theme.colors.text }]}>{user?.email}</Text>
+            <Text style={[styles.rowText, { color: theme.colors.text }]}>{profile?.username || 'Username'}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.row}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
+              <Mail size={20} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.rowText, { color: theme.colors.text }]}>{profile?.email || user?.email}</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.row}>
+            <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
+              <Phone size={20} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.rowText, { color: theme.colors.text }]}>{profile?.phone || user?.phone || 'No Phone'}</Text>
           </View>
         </View>
       </View>

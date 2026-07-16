@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { AudioVisualizer } from '../../components/audio-visualizer';
+import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -401,27 +402,42 @@ export default function RecordScreen() {
       {/* Recent Meetings */}
       {state === 'idle' && recentMeetings.length > 0 && (
         <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
-          <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Meetings</Text>
-          <ScrollView style={styles.recentList} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Recordings</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.recentListContent}
+            decelerationRate="fast"
+            snapToInterval={width * 0.75 + 16} // card width + margin
+          >
             {recentMeetings.map(meeting => (
               <AnimatedPressable
                 key={meeting.id}
-                style={[styles.meetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                style={styles.meetingCardShadow}
                 onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
-                scaleTo={0.97}
+                scaleTo={0.95}
               >
-                <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
-                  <FileText size={20} color={theme.colors.primary} />
-                </View>
-                <View style={styles.meetingInfo}>
-                  <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {meeting.title || 'Meeting'}
-                  </Text>
-                  <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
-                    {new Date(meeting.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={theme.colors.textMuted} />
+                <BlurView 
+                  intensity={Platform.OS === 'android' ? 100 : 70} 
+                  tint={theme.name === 'arctic' ? 'light' : 'dark'} 
+                  style={styles.meetingCard}
+                >
+                  <View style={styles.meetingCardHeader}>
+                    <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.primary + '20' }]}>
+                      <FileText size={22} color={theme.colors.primary} />
+                    </View>
+                    <ChevronRight size={20} color={theme.colors.textMuted} />
+                  </View>
+                  
+                  <View style={styles.meetingInfo}>
+                    <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={2}>
+                      {meeting.title || 'Untitled Recording'}
+                    </Text>
+                    <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
+                      {new Date(meeting.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at {new Date(meeting.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                </BlurView>
               </AnimatedPressable>
             ))}
           </ScrollView>
@@ -624,29 +640,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.5,
   },
-  recentList: { maxHeight: 200 },
+  recentListContent: { 
+    paddingRight: 24, 
+    paddingBottom: 10, // space for shadow
+  },
+  meetingCardShadow: {
+    width: width * 0.75,
+    marginRight: 16,
+    borderRadius: 24,
+    // Apple style soft shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   meetingCard: {
+    borderRadius: 24,
+    padding: 20,
+    height: 140,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+  },
+  meetingCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   meetingIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
   },
-  meetingInfo: { flex: 1 },
+  meetingInfo: { 
+    marginTop: 'auto' 
+  },
   meetingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 6,
     letterSpacing: -0.3,
+    lineHeight: 22,
   },
-  meetingDate: { fontSize: 13 },
+  meetingDate: { 
+    fontSize: 13,
+    fontWeight: '500',
+  },
 });

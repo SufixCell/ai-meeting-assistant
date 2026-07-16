@@ -4,10 +4,10 @@ import { useTheme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogIn, Mail, Lock } from 'lucide-react-native';
+import { LogIn, User, Lock } from 'lucide-react-native';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,16 +15,47 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!identifier || !password) {
       setError('Please fill in all fields');
       return;
     }
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    let loginEmail = identifier.trim();
+    let loginPhone = undefined;
+
+    // Determine if identifier is an email, phone, or username
+    if (identifier.includes('@')) {
+      // It's an email
+      loginEmail = identifier;
+    } else if (identifier.startsWith('+') || /^\d+$/.test(identifier)) {
+      // It's a phone number
+      loginPhone = identifier.startsWith('+') ? identifier : '+' + identifier;
+      loginEmail = '';
+    } else {
+      // It's a username. We need to look up the email.
+      const { data: emailData, error: lookupError } = await supabase.rpc('get_email_by_username', { p_username: identifier });
+      if (lookupError || !emailData) {
+        setLoading(false);
+        setError('User not found.');
+        return;
+      }
+      loginEmail = emailData;
+    }
+
+    let authError;
+    if (loginPhone) {
+      const { error } = await supabase.auth.signInWithPassword({ phone: loginPhone, password });
+      authError = error;
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+      authError = error;
+    }
+
     setLoading(false);
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setError(authError.message);
     } else {
       router.replace('/(tabs)');
     }
@@ -55,15 +86,14 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Mail size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
+            <User size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.colors.text }]} 
-              placeholder="Email"
+              placeholder="Email, Username, or Phone"
               placeholderTextColor={theme.colors.textMuted}
               autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
+              value={identifier}
+              onChangeText={setIdentifier}
             />
           </View>
 

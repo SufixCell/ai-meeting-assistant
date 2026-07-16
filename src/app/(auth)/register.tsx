@@ -4,10 +4,12 @@ import { useTheme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { UserPlus, Mail, Lock } from 'lucide-react-native';
+import { UserPlus, Mail, Lock, User, Phone } from 'lucide-react-native';
 
 export default function RegisterScreen() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,18 +17,57 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!email || !password) {
+    if (!username || !email || !phone || !password) {
       setError('Please fill in all fields');
       return;
     }
+    
+    // Very basic username format check
+    if (username.includes('@') || username.includes('+')) {
+      setError('Username cannot contain @ or + symbols.');
+      return;
+    }
+
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signUp({ email, password });
+
+    // Pre-flight check: is username available?
+    const { data: isAvailable, error: checkError } = await supabase.rpc('is_username_available', { p_username: username });
+    if (checkError) {
+      // Fallback if RPC isn't deployed yet
+      console.log('Username check failed (might not be deployed):', checkError);
+    } else if (isAvailable === false) {
+      setError('Username is already taken.');
+      setLoading(false);
+      return;
+    }
+
+    // Format phone number to start with + if it doesn't already, assuming country code is entered
+    let formattedPhone = phone.trim();
+    if (!formattedPhone.startsWith('+')) {
+      // Supabase strictly requires E.164 format (+1234567890)
+      // We'll append a + and hope the user entered a country code. 
+      // Alternatively, we let Supabase throw an invalid phone error.
+      formattedPhone = '+' + formattedPhone;
+    }
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      phone: formattedPhone,
+      options: {
+        data: {
+          username,
+          phone: formattedPhone,
+        }
+      }
+    });
+
     setLoading(false);
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
     } else {
-      // Usually Supabase requires email confirmation, but we'll redirect to login or tabs directly for now
+      // Usually Supabase requires email confirmation, but we'll redirect to tabs directly for now
       router.replace('/(tabs)');
     }
   };
@@ -56,6 +97,18 @@ export default function RegisterScreen() {
 
         <View style={styles.form}>
           <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <User size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]} 
+              placeholder="Username"
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Mail size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.colors.text }]} 
@@ -65,6 +118,18 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <Phone size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]} 
+              placeholder="Phone (e.g. 1234567890)"
+              placeholderTextColor={theme.colors.textMuted}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
             />
           </View>
 
