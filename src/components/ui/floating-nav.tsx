@@ -1,52 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../theme';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { AnimatedPressable } from '../animated-pressable';
 
+// Labels to show under each route name
+const ROUTE_LABELS: Record<string, string> = {
+  index: 'Home',
+  history: 'History',
+  settings: 'Settings',
+};
+
 export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
-  
-  // Calculate max width for the floating nav (like max-w-lg in tailwind)
-  const MAX_WIDTH = Math.min(width - 48, 300); // reduced max width for tighter icons
-  // Inner width accounts for the paddingHorizontal: 6 (12 total padding)
-  const INNER_WIDTH = MAX_WIDTH - 12;
-  const TAB_WIDTH = INNER_WIDTH / state.routes.length;
 
-  const animatedIndicatorStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateX: withSpring(state.index * TAB_WIDTH, {
-            damping: 25, // higher damping for less wobble
-            stiffness: 250,
-          }),
-        },
-      ],
-    };
-  });
+  const PILL_PADDING = 8; // paddingHorizontal on the pill container
+  const TAB_COUNT = state.routes.length;
+
+  // Pill width: snug around 3 tabs. Each tab will be ~80px wide.
+  const TAB_WIDTH = 80;
+  const NAV_WIDTH = TAB_WIDTH * TAB_COUNT + PILL_PADDING * 2;
+
+  // The indicator slides to: paddingLeft + (index * TAB_WIDTH)
+  const indicatorOffset = PILL_PADDING + state.index * TAB_WIDTH;
+
+  const animatedIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: withSpring(PILL_PADDING + state.index * TAB_WIDTH, {
+          damping: 28,
+          stiffness: 260,
+          mass: 0.8,
+        }),
+      },
+    ],
+  }));
+
+  const isDark = theme.name !== 'arctic';
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <View 
+      <View
         style={[
-          styles.navContainer, 
-          { 
-            width: MAX_WIDTH, 
-            backgroundColor: theme.name === 'arctic' ? '#FFFFFF' : '#171717', // dark:bg-neutral-900 
-            borderColor: theme.name === 'arctic' ? '#E5E7EB' : '#262626' // border-gray-200 / border-gray-800
-          }
+          styles.navContainer,
+          {
+            width: NAV_WIDTH,
+            backgroundColor: isDark ? '#171717' : '#FFFFFF',
+            borderColor: isDark ? '#2a2a2a' : '#E5E7EB',
+          },
         ]}
       >
-        {/* Sliding Active Indicator */}
+        {/* Sliding pill indicator — pixel-perfectly aligned */}
         <Animated.View
           style={[
             styles.indicator,
-            { 
+            {
               width: TAB_WIDTH,
-              backgroundColor: theme.name === 'arctic' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(96, 165, 250, 0.2)', // bg-blue-500/10
+              backgroundColor: isDark ? 'rgba(96,165,250,0.18)' : 'rgba(59,130,246,0.1)',
             },
             animatedIndicatorStyle,
           ]}
@@ -55,6 +67,11 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
+          const label = ROUTE_LABELS[route.name] ?? route.name;
+
+          const activeColor = isDark ? '#60A5FA' : '#3B82F6';
+          const inactiveColor = isDark ? '#71717A' : '#6B7280';
+          const iconColor = isFocused ? activeColor : inactiveColor;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -62,7 +79,6 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
               target: route.key,
               canPreventDefault: true,
             });
-
             if (!isFocused && !event.defaultPrevented) {
               navigation.navigate(route.name, route.params);
             }
@@ -76,17 +92,22 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               onPress={onPress}
-              style={styles.navItem}
-              scaleTo={0.9}
+              style={[styles.navItem, { width: TAB_WIDTH }]}
+              scaleTo={0.88}
             >
-              <View style={{ zIndex: 10 }}>
-                {Icon && (
-                  <Icon 
-                    focused={isFocused} 
-                    color={isFocused ? (theme.name === 'arctic' ? '#3B82F6' : '#60A5FA') : (theme.name === 'arctic' ? '#4B5563' : '#D1D5DB')} 
-                    size={22} 
-                  />
-                )}
+              <View style={styles.itemInner}>
+                {Icon && <Icon focused={isFocused} color={iconColor} size={21} />}
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: iconColor,
+                      fontWeight: isFocused ? '600' : '400',
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
               </View>
             </AnimatedPressable>
           );
@@ -110,29 +131,37 @@ const styles = StyleSheet.create({
   navContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 60,
-    borderRadius: 30,
-    paddingHorizontal: 6,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    zIndex: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 16,
+    overflow: 'hidden',
+    position: 'relative',
   },
   indicator: {
     position: 'absolute',
-    height: 48,
+    top: 8,
+    bottom: 8,
     borderRadius: 24,
-    left: 6,
     zIndex: 0,
+  },
+  navItem: {
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  itemInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  label: {
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
 });
