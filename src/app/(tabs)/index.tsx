@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useTheme } from '../../theme';
 import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,7 @@ import Animated, {
   FadeOut,
   SlideInDown
 } from 'react-native-reanimated';
+import { AnimatedPressable } from '../../components/animated-pressable';
 
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
@@ -42,7 +43,7 @@ export default function RecordScreen() {
   const glowScale1 = useSharedValue(1);
   const glowScale2 = useSharedValue(1);
   const glowScale3 = useSharedValue(1);
-  const glowOpacity = useSharedValue(0.3);
+  const glowOpacity = useSharedValue(0.2);
 
   useEffect(() => {
     if (state === 'idle') {
@@ -54,7 +55,7 @@ export default function RecordScreen() {
       glowScale1.value = withRepeat(withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
       glowScale2.value = withRepeat(withDelay(150, withTiming(1.6, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
       glowScale3.value = withRepeat(withDelay(300, withTiming(1.9, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
-      glowOpacity.value = withRepeat(withTiming(0.4, { duration: 600 }), -1, true);
+      glowOpacity.value = withRepeat(withTiming(0.3, { duration: 600 }), -1, true);
     } else {
       glowScale1.value = withSpring(1);
       glowScale2.value = withSpring(1);
@@ -135,15 +136,15 @@ export default function RecordScreen() {
               <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.primary }]} />
               <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.primary }]} />
               
-              <TouchableOpacity 
-                activeOpacity={0.9} 
+              <AnimatedPressable 
                 onPress={() => setState('recording')}
                 style={[styles.mainOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]} 
+                scaleTo={0.88}
               >
                 <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.innerOrbGradient} >
                   <Mic size={48} color="#FFFFFF" />
                 </LinearGradient>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
             <Text style={[styles.tapToRecord, { color: theme.colors.text }]}>Tap to Record</Text>
             <Text style={[styles.description, { color: theme.colors.textMuted }]}>
@@ -159,9 +160,12 @@ export default function RecordScreen() {
               <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.danger }]} />
               <Animated.View style={[styles.pulseRing, animatedGlow3, { backgroundColor: theme.colors.danger }]} />
               
-              <View style={[styles.liveOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}>
+              <AnimatedPressable 
+                style={[styles.liveOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}
+                scaleTo={0.92}
+              >
                 <Mic size={56} color={theme.colors.danger} />
-              </View>
+              </AnimatedPressable>
             </View>
             
             <View style={styles.statusIndicator}>
@@ -170,18 +174,20 @@ export default function RecordScreen() {
             </View>
 
             <View style={styles.controlsRow}>
-              <TouchableOpacity 
+              <AnimatedPressable 
                 style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]} 
                 onPress={() => setState(state === 'recording' ? 'paused' : 'recording')}
+                scaleTo={0.85}
               >
                 {state === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
-              </TouchableOpacity>
-              <TouchableOpacity 
+              </AnimatedPressable>
+              <AnimatedPressable 
                 style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]} 
                 onPress={() => setState('processing')}
+                scaleTo={0.85}
               >
                 <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
           </Animated.View>
         )}
@@ -211,10 +217,11 @@ export default function RecordScreen() {
           <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Meetings</Text>
           <ScrollView style={styles.recentList} showsVerticalScrollIndicator={false}>
             {recentMeetings.map((meeting) => (
-              <TouchableOpacity 
+              <AnimatedPressable 
                 key={meeting.id} 
                 style={[styles.meetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                 onPress={() => router.push('/summary')}
+                scaleTo={0.97}
               >
                 <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
                   <FileText size={20} color={theme.colors.primary} />
@@ -226,7 +233,7 @@ export default function RecordScreen() {
                   </Text>
                 </View>
                 <ChevronRight size={20} color={theme.colors.textMuted} />
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </ScrollView>
         </Animated.View>
@@ -247,18 +254,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greeting: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 12,
+    letterSpacing: 2.5,
+    marginBottom: 16,
   },
   headline: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     textAlign: 'center',
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    lineHeight: 40,
+    letterSpacing: -1.2,
   },
   centerStage: {
     flex: 1,
@@ -321,13 +328,14 @@ const styles = StyleSheet.create({
     elevation: 20,
     shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    shadowOpacity: 0.4,
+    shadowRadius: 25,
   },
   tapToRecord: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 12,
+    letterSpacing: -0.5,
   },
   description: {
     fontSize: 15,
@@ -354,6 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    letterSpacing: 1,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -386,12 +395,13 @@ const styles = StyleSheet.create({
   },
   processingTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   processingStageText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 40,
   },
   skeletonContainer: {
@@ -409,8 +419,9 @@ const styles = StyleSheet.create({
   },
   recentTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 16,
+    letterSpacing: -0.5,
   },
   recentList: {
     maxHeight: 200,
@@ -438,6 +449,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   meetingDate: {
     fontSize: 13,

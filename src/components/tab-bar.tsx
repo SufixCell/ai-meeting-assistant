@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../theme';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { AnimatedPressable } from './animated-pressable';
 
 const { width } = Dimensions.get('window');
 const TAB_BAR_WIDTH = width - 48; // 24 padding on each side
@@ -26,59 +28,66 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   return (
     <View style={styles.container}>
-      <View style={[styles.tabBar, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
-        <Animated.View
-          style={[
-            styles.indicator,
-            { 
-              width: TAB_WIDTH - 16, 
-              backgroundColor: theme.colors.surface,
-              shadowColor: theme.colors.primary,
-            },
-            animatedIndicatorStyle,
-          ]}
+      <View style={[styles.tabBarWrapper, { borderColor: theme.colors.border }]}>
+        <BlurView 
+          intensity={theme.name === 'arctic' ? 80 : 30} 
+          tint={theme.name === 'arctic' ? 'light' : 'dark'} 
+          style={StyleSheet.absoluteFill} 
         />
+        
+        <View style={styles.tabBar}>
+          <Animated.View
+            style={[
+              styles.indicator,
+              { 
+                width: TAB_WIDTH - 16, 
+                backgroundColor: theme.colors.surface,
+                shadowColor: theme.colors.primary,
+              },
+              animatedIndicatorStyle,
+            ]}
+          />
 
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          {state.routes.map((route, index) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
 
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
 
-          // Safely render the icon from options
-          const Icon = options.tabBarIcon;
+            const Icon = options.tabBarIcon;
 
-          return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={options.tabBarAccessibilityLabel}
-              testID={options.tabBarTestID}
-              onPress={onPress}
-              style={styles.tabItem}
-              activeOpacity={0.7}
-            >
-              {Icon && (
-                <Icon 
-                  focused={isFocused} 
-                  color={isFocused ? theme.colors.primary : theme.colors.textMuted} 
-                  size={24} 
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+            return (
+              <AnimatedPressable
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                style={styles.tabItem}
+                scaleTo={0.85}
+              >
+                {Icon && (
+                  <Icon 
+                    focused={isFocused} 
+                    color={isFocused ? theme.colors.primary : theme.colors.textMuted} 
+                    size={24} 
+                  />
+                )}
+              </AnimatedPressable>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -93,19 +102,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabBar: {
-    flexDirection: 'row',
+  tabBarWrapper: {
+    width: TAB_BAR_WIDTH,
     height: 64,
     borderRadius: 32,
     borderWidth: 1,
     overflow: 'hidden',
-    paddingHorizontal: 8,
-    alignItems: 'center',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.2)', // Base tint for blur
+  },
+  tabBar: {
+    flexDirection: 'row',
+    flex: 1,
+    paddingHorizontal: 8,
+    alignItems: 'center',
   },
   tabItem: {
     flex: 1,
