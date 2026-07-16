@@ -1,177 +1,241 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../../theme';
 import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { AudioVisualizer } from '../../components/audio-visualizer';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  withDelay, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
   Easing,
   withSpring,
   FadeIn,
   FadeOut,
-  SlideInDown
+  SlideInDown,
 } from 'react-native-reanimated';
 import { AnimatedPressable } from '../../components/animated-pressable';
 
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
 
-import { Platform } from 'react-native';
-
-const FAKE_TRANSCRIPT_PARTS = [
-  "Alright, let's get started with the Q3 roadmap planning. ",
-  "First, I think we should prioritize the mobile app redesign. ",
-  "Agreed. We also need to scale the backend database. ",
-  "What about the marketing budget? ",
-  "I'll approve a 15% increase for Q3 marketing. ",
-  "Great. Let's aim for a mid-August launch for the new features. ",
-  "Wait, let's adjust that to late-August for QA stability testing. "
-];
-
 export default function RecordScreen() {
   const [state, setState] = useState<RecordState>('idle');
   const [timer, setTimer] = useState(0);
   const [processingStage, setProcessingStage] = useState(0);
   const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
-  const [transcript, setTranscript] = useState("");
-  const [isListeningReal, setIsListeningReal] = useState(false);
+  // We store live transcript in a ref so the speech API callback always reads current value
+  const [displayTranscript, setDisplayTranscript] = useState('');
+  const [interimText, setInterimText] = useState('');
+  const transcriptRef = useRef('');
   const recognitionRef = useRef<any>(null);
-  const transcriptIndex = useRef(0);
+  const recognitionActiveRef = useRef(false);
+  const shouldBeRecordingRef = useRef(false);
   const router = useRouter();
   const { theme } = useTheme();
 
+  // ─── Fetch recent meetings ────────────────────────────────────────────────
   useEffect(() => {
     if (state === 'idle') {
-      supabase.from('meetings').select('*').order('created_at', { ascending: false }).limit(3)
+      supabase
+        .from('meetings')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3)
         .then(({ data }) => {
           if (data) setRecentMeetings(data);
         });
     }
   }, [state]);
 
-  // Breathing Orb Animations
+  // ─── Breathing Orb Animations ─────────────────────────────────────────────
   const glowScale1 = useSharedValue(1);
   const glowScale2 = useSharedValue(1);
-  const glowScale3 = useSharedValue(1);
   const glowOpacity = useSharedValue(0.2);
 
   useEffect(() => {
     if (state === 'idle') {
       glowScale1.value = withRepeat(withTiming(1.2, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
       glowScale2.value = withRepeat(withDelay(500, withTiming(1.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })), -1, true);
-      glowScale3.value = 1;
       glowOpacity.value = withRepeat(withTiming(0.1, { duration: 2500 }), -1, true);
-    } else if (state === 'recording') {
-      glowScale1.value = withRepeat(withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale2.value = withRepeat(withDelay(150, withTiming(1.6, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
-      glowScale3.value = withRepeat(withDelay(300, withTiming(1.9, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
-      glowOpacity.value = withRepeat(withTiming(0.3, { duration: 600 }), -1, true);
     } else {
       glowScale1.value = withSpring(1);
       glowScale2.value = withSpring(1);
-      glowScale3.value = withSpring(1);
       glowOpacity.value = withTiming(0.1);
     }
   }, [state]);
 
   const animatedGlow1 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale1.value }], opacity: glowOpacity.value }));
   const animatedGlow2 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale2.value }], opacity: glowOpacity.value * 0.7 }));
-  const animatedGlow3 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale3.value }], opacity: glowOpacity.value * 0.4 }));
 
-  // Web Speech API Initialization
-  useEffect(() => {
-    if (Platform.OS === 'web' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-
-      recognitionRef.current.onresult = (event: any) => {
-        let finalTranscriptStr = '';
-        let interimTranscriptStr = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscriptStr += event.results[i][0].transcript;
-          } else {
-            interimTranscriptStr += event.results[i][0].transcript;
-          }
-        }
-        if (finalTranscriptStr) {
-          setTranscript(prev => prev + finalTranscriptStr + ' ');
-        }
-      };
-
-      recognitionRef.current.onstart = () => {
-        setIsListeningReal(true);
-      };
-
-      recognitionRef.current.onerror = (e: any) => {
-        console.log("Speech recognition error", e);
-        setIsListeningReal(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListeningReal(false);
-      };
-    }
-  }, []);
-
-  // Timer & Transcription Logic
+  // ─── Timer ────────────────────────────────────────────────────────────────
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (state === 'recording') {
-      if (recognitionRef.current && !isListeningReal) {
-        try {
-          recognitionRef.current.start();
-        } catch(e) {}
-      }
-
-      interval = setInterval(() => {
-        setTimer(t => t + 1);
-        // Fallback to fake transcript if real speech isn't working/available
-        if (!isListeningReal && timer % 3 === 0 && transcriptIndex.current < FAKE_TRANSCRIPT_PARTS.length) {
-          setTranscript(prev => prev + FAKE_TRANSCRIPT_PARTS[transcriptIndex.current]);
-          transcriptIndex.current += 1;
-        }
-      }, 1000);
-    } else if (state === 'paused' || state === 'processing' || state === 'idle') {
-      if (recognitionRef.current && isListeningReal) {
-        recognitionRef.current.stop();
-      }
+      interval = setInterval(() => setTimer(t => t + 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [state, timer, isListeningReal]);
+  }, [state]);
 
-  // Processing Simulation Logic
+  // ─── Web Speech API Setup ─────────────────────────────────────────────────
+  const startRecognition = useCallback(() => {
+    if (Platform.OS !== 'web') return;
+
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      console.warn('SpeechRecognition not supported in this browser');
+      return;
+    }
+
+    // Always create a fresh instance to avoid state issues
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (_) {}
+    }
+
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    rec.onresult = (event: any) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          transcriptRef.current += result[0].transcript + ' ';
+          setDisplayTranscript(transcriptRef.current);
+          setInterimText('');
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+      if (interim) setInterimText(interim);
+    };
+
+    rec.onerror = (e: any) => {
+      console.error('Speech recognition error:', e.error);
+      recognitionActiveRef.current = false;
+      // Auto-restart on network errors
+      if (e.error === 'network' || e.error === 'no-speech') {
+        if (shouldBeRecordingRef.current) {
+          setTimeout(() => {
+            if (shouldBeRecordingRef.current) startRecognition();
+          }, 500);
+        }
+      }
+    };
+
+    rec.onend = () => {
+      recognitionActiveRef.current = false;
+      // Chrome stops recognition automatically — restart if we still should be recording
+      if (shouldBeRecordingRef.current) {
+        setTimeout(() => {
+          if (shouldBeRecordingRef.current) startRecognition();
+        }, 100);
+      }
+    };
+
+    rec.onstart = () => {
+      recognitionActiveRef.current = true;
+    };
+
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      console.error('Failed to start recognition:', e);
+    }
+  }, []);
+
+  const stopRecognition = useCallback(() => {
+    shouldBeRecordingRef.current = false;
+    recognitionActiveRef.current = false;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (_) {}
+      recognitionRef.current = null;
+    }
+  }, []);
+
+  // ─── Recording State Machine ──────────────────────────────────────────────
+  const handleStartRecording = () => {
+    transcriptRef.current = '';
+    setDisplayTranscript('');
+    setInterimText('');
+    setTimer(0);
+    setState('recording');
+    shouldBeRecordingRef.current = true;
+    startRecognition();
+  };
+
+  const handlePause = () => {
+    if (state === 'recording') {
+      shouldBeRecordingRef.current = false;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (_) {}
+      }
+      setState('paused');
+    } else if (state === 'paused') {
+      setState('recording');
+      shouldBeRecordingRef.current = true;
+      startRecognition();
+    }
+  };
+
+  const handleStop = () => {
+    stopRecognition();
+    setState('processing');
+  };
+
+  // ─── AI Processing ────────────────────────────────────────────────────────
+  const processingStages = [
+    'Uploading audio...',
+    'Generating transcript...',
+    'Extracting decisions...',
+    'Finding action items...',
+    'Building executive summary...',
+  ];
+
   useEffect(() => {
     if (state === 'processing') {
+      setProcessingStage(0);
       let stage = 0;
       const interval = setInterval(() => {
         stage++;
-        if (stage > 4) {
-          clearInterval(interval);
-          router.push({ pathname: '/summary', params: { transcript } });
-          setTimeout(() => { 
-            setState('idle'); 
-            setTimer(0); 
-            setProcessingStage(0); 
-            setTranscript(""); 
-            transcriptIndex.current = 0; 
-          }, 500);
-        } else {
+        if (stage < processingStages.length) {
           setProcessingStage(stage);
         }
-      }, 1500);
-      return () => clearInterval(interval);
+      }, 1000);
+
+      // Wait a moment to let final speech results arrive then call Groq
+      const groqTimer = setTimeout(async () => {
+        clearInterval(interval);
+        const finalTranscript = transcriptRef.current.trim();
+
+        // Navigate to summary — pass the transcript, Groq processes on that screen
+        router.push({
+          pathname: '/summary',
+          params: { transcript: finalTranscript },
+        });
+
+        setTimeout(() => {
+          setState('idle');
+          setTimer(0);
+          setProcessingStage(0);
+          setDisplayTranscript('');
+          setInterimText('');
+        }, 500);
+      }, Math.min(processingStages.length * 1000, 5000));
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(groqTimer);
+      };
     }
-  }, [state, transcript]);
+  }, [state]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60).toString().padStart(2, '0');
@@ -179,14 +243,7 @@ export default function RecordScreen() {
     return `${m}:${s}`;
   };
 
-  const processingStages = [
-    "Uploading audio...",
-    "Generating transcript...",
-    "Extracting decisions...",
-    "Finding action items...",
-    "Building executive summary..."
-  ];
-
+  // ─── UI ───────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <LinearGradient
@@ -198,7 +255,7 @@ export default function RecordScreen() {
 
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: theme.colors.textMuted }]}>
-          {state === 'idle' ? 'Good Morning' : 'AI Meeting Assistant'}
+          {state === 'idle' ? 'AI Meeting Assistant' : 'Recording'}
         </Text>
         {state === 'idle' && (
           <Text style={[styles.headline, { color: theme.colors.text }]}>
@@ -208,79 +265,99 @@ export default function RecordScreen() {
       </View>
 
       <View style={styles.centerStage}>
+        {/* ── IDLE ── */}
         {state === 'idle' && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.idleState}>
             <View style={styles.orbContainer}>
               <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.primary }]} />
               <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.primary }]} />
-              
-              <AnimatedPressable 
-                onPress={() => setState('recording')}
-                style={[styles.mainOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]} 
+
+              <AnimatedPressable
+                onPress={handleStartRecording}
+                style={[styles.mainOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                 scaleTo={0.88}
               >
-                <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.innerOrbGradient} >
+                <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.innerOrbGradient}>
                   <Mic size={48} color="#FFFFFF" />
                 </LinearGradient>
               </AnimatedPressable>
             </View>
             <Text style={[styles.tapToRecord, { color: theme.colors.text }]}>Tap to Record</Text>
             <Text style={[styles.description, { color: theme.colors.textMuted }]}>
-              Record once. We'll generate transcripts, summaries, action items, and searchable notes automatically.
+              Record your meeting. AI will generate a transcript, summary, and action items automatically.
             </Text>
           </Animated.View>
         )}
 
+        {/* ── RECORDING / PAUSED ── */}
         {(state === 'recording' || state === 'paused') && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
-            {/* Visualizer instead of glowing orb */}
-            <View style={styles.visualizerContainer}>
-              <AudioVisualizer isRecording={state === 'recording'} />
-            </View>
-            
+            <AudioVisualizer isRecording={state === 'recording'} />
+
             <View style={styles.statusIndicator}>
               <View style={[styles.liveDot, { backgroundColor: state === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
               <Text style={[styles.timer, { color: theme.colors.text }]}>{formatTime(timer)}</Text>
+              {state === 'recording' && (
+                <Text style={[styles.liveLabel, { color: theme.colors.danger }]}>LIVE</Text>
+              )}
             </View>
 
             <View style={styles.controlsRow}>
-              <AnimatedPressable 
-                style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]} 
-                onPress={() => setState(state === 'recording' ? 'paused' : 'recording')}
+              <AnimatedPressable
+                style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
+                onPress={handlePause}
                 scaleTo={0.85}
               >
                 {state === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
               </AnimatedPressable>
-              <AnimatedPressable 
-                style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]} 
-                onPress={() => setState('processing')}
+              <AnimatedPressable
+                style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]}
+                onPress={handleStop}
                 scaleTo={0.85}
               >
                 <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
               </AnimatedPressable>
             </View>
 
-            {/* Live Transcript Simulation */}
-            <ScrollView style={styles.liveTranscriptContainer} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-               <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>Live Transcript</Text>
-               <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
-                 {transcript}
-                 {state === 'recording' && <Animated.Text entering={FadeIn} exiting={FadeOut} style={{ color: theme.colors.textMuted }}>...</Animated.Text>}
-               </Text>
+            {/* Live Transcript */}
+            <ScrollView
+              style={[styles.liveTranscriptContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              contentContainerStyle={{ paddingBottom: 12 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>
+                {Platform.OS === 'web' ? '🎤 LIVE TRANSCRIPT' : 'TRANSCRIPT'}
+              </Text>
+              {displayTranscript || interimText ? (
+                <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
+                  {displayTranscript}
+                  {interimText ? (
+                    <Text style={{ color: theme.colors.textMuted, fontStyle: 'italic' }}>{interimText}</Text>
+                  ) : null}
+                </Text>
+              ) : (
+                <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
+                  {state === 'recording'
+                    ? Platform.OS === 'web'
+                      ? 'Listening... Start speaking.'
+                      : 'Recording audio...'
+                    : 'Paused'}
+                </Text>
+              )}
             </ScrollView>
           </Animated.View>
         )}
 
+        {/* ── PROCESSING ── */}
         {state === 'processing' && (
           <Animated.View entering={FadeIn.delay(300)} exiting={FadeOut} style={styles.processingState}>
             <View style={[styles.aiPulseContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-               <Sparkles size={40} color={theme.colors.primary} />
+              <Sparkles size={40} color={theme.colors.primary} />
             </View>
             <Text style={[styles.processingTitle, { color: theme.colors.text }]}>AI is working...</Text>
             <Animated.Text entering={SlideInDown} key={processingStage} style={[styles.processingStageText, { color: theme.colors.primary }]}>
-              {processingStages[processingStage] || processingStages[processingStages.length - 1]}
+              {processingStages[processingStage]}
             </Animated.Text>
-            
             <View style={styles.skeletonContainer}>
               <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '90%' }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '70%' }]} />
@@ -290,23 +367,25 @@ export default function RecordScreen() {
         )}
       </View>
 
-      {/* Recent Meetings Section (Only in Idle State) */}
+      {/* Recent Meetings */}
       {state === 'idle' && recentMeetings.length > 0 && (
         <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
           <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Meetings</Text>
           <ScrollView style={styles.recentList} showsVerticalScrollIndicator={false}>
-            {recentMeetings.map((meeting) => (
-              <AnimatedPressable 
-                key={meeting.id} 
+            {recentMeetings.map(meeting => (
+              <AnimatedPressable
+                key={meeting.id}
                 style={[styles.meetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                onPress={() => router.push('/summary')}
+                onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
                 scaleTo={0.97}
               >
                 <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
                   <FileText size={20} color={theme.colors.primary} />
                 </View>
                 <View style={styles.meetingInfo}>
-                  <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={1}>{meeting.title}</Text>
+                  <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                    {meeting.title || 'Meeting'}
+                  </Text>
                   <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
                     {new Date(meeting.created_at).toLocaleDateString()}
                   </Text>
@@ -351,54 +430,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 300,
   },
-  idleState: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  recordingState: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  processingState: {
-    alignItems: 'center',
-    width: '100%',
-  },
+  idleState: { alignItems: 'center', width: '100%' },
+  recordingState: { alignItems: 'center', width: '100%' },
+  processingState: { alignItems: 'center', width: '100%' },
+
   orbContainer: {
     width: 220,
     height: 220,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 40,
-  },
-  visualizerContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 120,
-    marginBottom: 20,
-  },
-  liveTranscriptContainer: {
-    width: '100%',
-    marginTop: 40,
-    paddingHorizontal: 20,
-    maxHeight: 180,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: 16,
-    padding: 16,
-  },
-  liveTranscriptTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  liveTranscriptText: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '400',
   },
   pulseRing: {
     position: 'absolute',
@@ -426,19 +468,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveOrb: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    elevation: 20,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 25,
-  },
   tapToRecord: {
     fontSize: 22,
     fontWeight: '700',
@@ -451,11 +480,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: '85%',
   },
+
   statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 40,
+    gap: 10,
+    marginBottom: 28,
     backgroundColor: 'rgba(0,0,0,0.1)',
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -472,9 +502,16 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     letterSpacing: 1,
   },
+  liveLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+
   controlsRow: {
     flexDirection: 'row',
     gap: 24,
+    marginBottom: 28,
   },
   controlButton: {
     width: 64,
@@ -492,6 +529,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
   },
+
+  liveTranscriptContainer: {
+    width: '100%',
+    maxHeight: 200,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  liveTranscriptTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  liveTranscriptText: {
+    fontSize: 16,
+    lineHeight: 26,
+    fontWeight: '400',
+  },
+  liveTranscriptPlaceholder: {
+    fontSize: 15,
+    fontStyle: 'italic',
+  },
+
   aiPulseContainer: {
     width: 120,
     height: 120,
@@ -521,6 +582,7 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
   },
+
   recentSection: {
     marginTop: 'auto',
     paddingBottom: 110,
@@ -531,9 +593,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.5,
   },
-  recentList: {
-    maxHeight: 200,
-  },
+  recentList: { maxHeight: 200 },
   meetingCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -550,16 +610,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
-  meetingInfo: {
-    flex: 1,
-  },
+  meetingInfo: { flex: 1 },
   meetingTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
     letterSpacing: -0.3,
   },
-  meetingDate: {
-    fontSize: 13,
-  },
+  meetingDate: { fontSize: 13 },
 });
