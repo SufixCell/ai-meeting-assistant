@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { useTheme } from '../theme';
-import { Mic, Square, Pause, Play, Sparkles } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import { useTheme } from '../../theme';
+import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -24,33 +25,47 @@ export default function RecordScreen() {
   const [state, setState] = useState<RecordState>('idle');
   const [timer, setTimer] = useState(0);
   const [processingStage, setProcessingStage] = useState(0);
+  const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
   const router = useRouter();
   const { theme } = useTheme();
+
+  useEffect(() => {
+    if (state === 'idle') {
+      supabase.from('meetings').select('*').order('created_at', { ascending: false }).limit(3)
+        .then(({ data }) => {
+          if (data) setRecentMeetings(data);
+        });
+    }
+  }, [state]);
 
   // Breathing Orb Animations
   const glowScale1 = useSharedValue(1);
   const glowScale2 = useSharedValue(1);
+  const glowScale3 = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
 
   useEffect(() => {
     if (state === 'idle') {
       glowScale1.value = withRepeat(withTiming(1.2, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale2.value = withRepeat(withDelay(500, withTiming(1.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })), -1, true);
+      glowScale2.value = withRepeat(withDelay(500, withTiming(1.4, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowScale3.value = 1;
       glowOpacity.value = withRepeat(withTiming(0.1, { duration: 2500 }), -1, true);
     } else if (state === 'recording') {
-      glowScale1.value = withRepeat(withTiming(1.3, { duration: 800, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale2.value = withRepeat(withDelay(200, withTiming(1.6, { duration: 800, easing: Easing.inOut(Easing.ease) })), -1, true);
-      glowOpacity.value = withRepeat(withTiming(0.4, { duration: 800 }), -1, true);
+      glowScale1.value = withRepeat(withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowScale2.value = withRepeat(withDelay(150, withTiming(1.6, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowScale3.value = withRepeat(withDelay(300, withTiming(1.9, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowOpacity.value = withRepeat(withTiming(0.4, { duration: 600 }), -1, true);
     } else {
-      // Paused or processing
       glowScale1.value = withSpring(1);
       glowScale2.value = withSpring(1);
+      glowScale3.value = withSpring(1);
       glowOpacity.value = withTiming(0.1);
     }
   }, [state]);
 
   const animatedGlow1 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale1.value }], opacity: glowOpacity.value }));
   const animatedGlow2 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale2.value }], opacity: glowOpacity.value * 0.7 }));
+  const animatedGlow3 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale3.value }], opacity: glowOpacity.value * 0.4 }));
 
   // Timer Logic
   useEffect(() => {
@@ -95,7 +110,6 @@ export default function RecordScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Soft Top Gradient */}
       <LinearGradient
         colors={[theme.colors.primaryGlow, 'transparent']}
         style={StyleSheet.absoluteFillObject}
@@ -103,7 +117,6 @@ export default function RecordScreen() {
         end={{ x: 0.5, y: 0.3 }}
       />
 
-      {/* Header Area */}
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: theme.colors.textMuted }]}>
           {state === 'idle' ? 'Good Morning' : 'AI Meeting Assistant'}
@@ -115,7 +128,6 @@ export default function RecordScreen() {
         )}
       </View>
 
-      {/* Main Orb / Recording UI */}
       <View style={styles.centerStage}>
         {state === 'idle' && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.idleState}>
@@ -128,10 +140,7 @@ export default function RecordScreen() {
                 onPress={() => setState('recording')}
                 style={[styles.mainOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]} 
               >
-                <LinearGradient
-                  colors={[theme.colors.primary, theme.colors.purple]}
-                  style={styles.innerOrbGradient}
-                >
+                <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.innerOrbGradient} >
                   <Mic size={48} color="#FFFFFF" />
                 </LinearGradient>
               </TouchableOpacity>
@@ -148,9 +157,10 @@ export default function RecordScreen() {
             <View style={styles.orbContainer}>
               <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.danger }]} />
               <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.danger }]} />
+              <Animated.View style={[styles.pulseRing, animatedGlow3, { backgroundColor: theme.colors.danger }]} />
               
               <View style={[styles.liveOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}>
-                <Waveform active={state === 'recording'} theme={theme} />
+                <Mic size={56} color={theme.colors.danger} />
               </View>
             </View>
             
@@ -180,14 +190,12 @@ export default function RecordScreen() {
           <Animated.View entering={FadeIn.delay(300)} exiting={FadeOut} style={styles.processingState}>
             <View style={[styles.aiPulseContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
                <Sparkles size={40} color={theme.colors.primary} />
-               <Loader2 size={80} color={theme.colors.primaryGlow} style={styles.spinnerIcon} />
             </View>
             <Text style={[styles.processingTitle, { color: theme.colors.text }]}>AI is working...</Text>
             <Animated.Text entering={SlideInDown} key={processingStage} style={[styles.processingStageText, { color: theme.colors.primary }]}>
               {processingStages[processingStage] || processingStages[processingStages.length - 1]}
             </Animated.Text>
             
-            {/* Shimmer Skeletons */}
             <View style={styles.skeletonContainer}>
               <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '90%' }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '70%' }]} />
@@ -196,28 +204,36 @@ export default function RecordScreen() {
           </Animated.View>
         )}
       </View>
+
+      {/* Recent Meetings Section (Only in Idle State) */}
+      {state === 'idle' && recentMeetings.length > 0 && (
+        <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
+          <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Meetings</Text>
+          <ScrollView style={styles.recentList} showsVerticalScrollIndicator={false}>
+            {recentMeetings.map((meeting) => (
+              <TouchableOpacity 
+                key={meeting.id} 
+                style={[styles.meetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => router.push('/summary')}
+              >
+                <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
+                  <FileText size={20} color={theme.colors.primary} />
+                </View>
+                <View style={styles.meetingInfo}>
+                  <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={1}>{meeting.title}</Text>
+                  <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
+                    {new Date(meeting.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Animated.View>
+      )}
     </View>
   );
 }
-
-// Minimal simulated Waveform
-const Waveform = ({ active, theme }: any) => {
-  const bars = Array.from({ length: 15 }).map((_, i) => <WaveBar key={i} active={active} delay={i * 120} theme={theme} />);
-  return <View style={styles.waveformContainer}>{bars}</View>;
-};
-
-const WaveBar = ({ active, delay, theme }: any) => {
-  const height = useSharedValue(4);
-  useEffect(() => {
-    if (active) {
-      height.value = withRepeat(withDelay(delay % 400, withTiming(Math.random() * 40 + 10, { duration: 350 })), -1, true);
-    } else {
-      height.value = withTiming(4, { duration: 300 });
-    }
-  }, [active]);
-  const style = useAnimatedStyle(() => ({ height: height.value }));
-  return <Animated.View style={[style, { width: 6, backgroundColor: theme.colors.danger, borderRadius: 3 }]} />;
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -228,7 +244,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginTop: 20,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   greeting: {
     fontSize: 14,
@@ -248,7 +264,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 100, // accommodate tab bar
+    minHeight: 300,
   },
   idleState: {
     alignItems: 'center',
@@ -319,13 +335,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: '85%',
   },
-  waveformContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 80,
-    gap: 4,
-  },
   statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -375,9 +384,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 30,
   },
-  spinnerIcon: {
-    position: 'absolute',
-  },
   processingTitle: {
     fontSize: 24,
     fontWeight: '600',
@@ -396,5 +402,44 @@ const styles = StyleSheet.create({
   skeletonLine: {
     height: 12,
     borderRadius: 6,
+  },
+  recentSection: {
+    marginTop: 'auto',
+    paddingBottom: 110,
+  },
+  recentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  recentList: {
+    maxHeight: 200,
+  },
+  meetingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  meetingIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  meetingInfo: {
+    flex: 1,
+  },
+  meetingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  meetingDate: {
+    fontSize: 13,
   },
 });

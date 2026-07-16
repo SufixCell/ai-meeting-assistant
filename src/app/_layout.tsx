@@ -1,77 +1,40 @@
-import { Tabs } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { BlurView } from 'expo-blur';
-import { ThemeProvider, useTheme } from '../theme';
-import { Home, Settings, Clock } from 'lucide-react-native';
-import { View, StyleSheet } from 'react-native';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { ThemeProvider } from '../theme';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
-function TabsLayout() {
-  const { theme } = useTheme();
+function RootLayoutNav() {
+  const { session, initialized } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!initialized) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!session && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (session && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [session, initialized, segments]);
+
+  if (!initialized) return null;
+
   return (
-    <>
-      <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: styles.tabBar,
-          tabBarBackground: () => (
-            <BlurView tint="light" intensity={60} style={StyleSheet.absoluteFill} />
-          ),
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textMuted,
-          tabBarShowLabel: false,
-        }}>
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Record',
-            tabBarIcon: ({ color }) => <Home size={24} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: 'History',
-            tabBarIcon: ({ color }) => <Clock size={24} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: 'Settings',
-            tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
-          }}
-        />
-      </Tabs>
-    </>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="summary" />
+    </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <TabsLayout />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <RootLayoutNav />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    right: 24,
-    elevation: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.40)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.50)',
-    height: 64,
-    paddingBottom: 0,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    overflow: 'hidden',
-  },
-});

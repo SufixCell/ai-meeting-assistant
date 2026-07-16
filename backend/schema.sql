@@ -3,7 +3,7 @@
 -- Create the meetings table
 create table if not exists public.meetings (
   id uuid default gen_random_uuid() primary key,
-  user_id text not null,
+  user_id uuid references auth.users(id) not null,
   title text not null default 'Untitled Meeting',
   transcript text,
   summary text,
@@ -14,19 +14,15 @@ create table if not exists public.meetings (
 -- Enable Row Level Security (RLS)
 alter table public.meetings enable row level security;
 
--- Create a policy that allows anyone to insert (for MVP testing)
--- In production, you would restrict this to authenticated users only using `auth.uid() = user_id`
-create policy "Allow public inserts" on public.meetings 
-  for insert with check (true);
+-- Strict Auth Policies: Users can only interact with their own data
+create policy "Users can insert their own meetings" on public.meetings 
+  for insert with check (auth.uid() = user_id);
 
--- Create a policy that allows anyone to read their own meetings
-create policy "Allow public reads" on public.meetings 
-  for select using (true);
+create policy "Users can read their own meetings" on public.meetings 
+  for select using (auth.uid() = user_id);
 
--- Create a policy that allows anyone to update their own meetings
-create policy "Allow public updates" on public.meetings 
-  for update using (true);
+create policy "Users can update their own meetings" on public.meetings 
+  for update using (auth.uid() = user_id);
 
--- Create a policy that allows anyone to delete their own meetings
-create policy "Allow public deletes" on public.meetings 
-  for delete using (true);
+create policy "Users can delete their own meetings" on public.meetings 
+  for delete using (auth.uid() = user_id);
