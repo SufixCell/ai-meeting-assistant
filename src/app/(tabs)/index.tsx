@@ -81,6 +81,22 @@ export default function RecordScreen() {
     return () => clearInterval(interval);
   }, [state]);
 
+  // ─── Force Mic Permission ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (Platform.OS === 'web' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          // Permission granted. We can stop the tracks since we don't need the raw stream
+          // Web Speech API will request it again but it will be auto-approved.
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch((err) => {
+          console.error('Microphone permission error:', err);
+          alert('Microphone access is required. Please allow microphone access in your browser settings or click the microphone icon in the URL bar.');
+        });
+    }
+  }, []);
+
   // ─── Web Speech API Setup ─────────────────────────────────────────────────
   const startRecognition = useCallback(() => {
     if (Platform.OS !== 'web') return;
