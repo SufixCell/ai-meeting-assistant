@@ -2,13 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useTheme } from '../theme';
 import { ArrowLeft, Share, Calendar, CheckSquare, AlignLeft, Sparkles, CheckCircle2 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { theme } = useTheme();
+
+  const transcript = params.transcript as string || "";
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -96,16 +99,25 @@ export default function SummaryScreen() {
             >
               <AlignLeft size={16} color="#FFF" />
             </LinearGradient>
-            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Key Transcript Snippet</Text>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Full Transcript</Text>
           </View>
-          <View style={[styles.transcriptRow, { borderLeftColor: theme.colors.border }]}>
-            <Text style={[styles.speakerText, { color: theme.colors.primary }]}>Sarah (10:04):</Text>
-            <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>I think we need an extra two weeks for QA if we want to hit our stability metrics.</Text>
-          </View>
-          <View style={[styles.transcriptRow, { borderLeftColor: theme.colors.border }]}>
-            <Text style={[styles.speakerText, { color: theme.colors.primary }]}>Mike (10:05):</Text>
-            <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>Agreed. Let's move the launch to mid-August. I'll adjust the marketing spend.</Text>
-          </View>
+          {transcript ? (
+            <View style={[styles.transcriptRow, { borderLeftColor: theme.colors.border }]}>
+              <Text style={[styles.speakerText, { color: theme.colors.primary }]}>You:</Text>
+              <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>{transcript}</Text>
+            </View>
+          ) : (
+            <>
+              <View style={[styles.transcriptRow, { borderLeftColor: theme.colors.border }]}>
+                <Text style={[styles.speakerText, { color: theme.colors.primary }]}>Sarah (10:04):</Text>
+                <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>I think we need an extra two weeks for QA if we want to hit our stability metrics.</Text>
+              </View>
+              <View style={[styles.transcriptRow, { borderLeftColor: theme.colors.border }]}>
+                <Text style={[styles.speakerText, { color: theme.colors.primary }]}>Mike (10:05):</Text>
+                <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>Agreed. Let's move the launch to mid-August. I'll adjust the marketing spend.</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <TouchableOpacity activeOpacity={0.8} style={[styles.exportButton, { shadowColor: theme.colors.primary }]}>

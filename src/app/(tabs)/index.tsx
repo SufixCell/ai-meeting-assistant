@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useTheme } from '../../theme';
 import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { AudioVisualizer } from '../../components/audio-visualizer';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -22,11 +23,23 @@ import { AnimatedPressable } from '../../components/animated-pressable';
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
 
+const FAKE_TRANSCRIPT_PARTS = [
+  "Alright, let's get started with the Q3 roadmap planning. ",
+  "First, I think we should prioritize the mobile app redesign. ",
+  "Agreed. We also need to scale the backend database. ",
+  "What about the marketing budget? ",
+  "I'll approve a 15% increase for Q3 marketing. ",
+  "Great. Let's aim for a mid-August launch for the new features. ",
+  "Wait, let's adjust that to late-August for QA stability testing. "
+];
+
 export default function RecordScreen() {
   const [state, setState] = useState<RecordState>('idle');
   const [timer, setTimer] = useState(0);
   const [processingStage, setProcessingStage] = useState(0);
   const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
+  const [transcript, setTranscript] = useState("");
+  const transcriptIndex = useRef(0);
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -68,14 +81,21 @@ export default function RecordScreen() {
   const animatedGlow2 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale2.value }], opacity: glowOpacity.value * 0.7 }));
   const animatedGlow3 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale3.value }], opacity: glowOpacity.value * 0.4 }));
 
-  // Timer Logic
+  // Timer & Transcription Logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (state === 'recording') {
-      interval = setInterval(() => setTimer(t => t + 1), 1000);
+      interval = setInterval(() => {
+        setTimer(t => t + 1);
+        // Append new transcript part every 3 seconds if we have more parts
+        if (timer % 3 === 0 && transcriptIndex.current < FAKE_TRANSCRIPT_PARTS.length) {
+          setTranscript(prev => prev + FAKE_TRANSCRIPT_PARTS[transcriptIndex.current]);
+          transcriptIndex.current += 1;
+        }
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [state]);
+  }, [state, timer]);
 
   // Processing Simulation Logic
   useEffect(() => {
@@ -85,15 +105,21 @@ export default function RecordScreen() {
         stage++;
         if (stage > 4) {
           clearInterval(interval);
-          router.push('/summary');
-          setTimeout(() => { setState('idle'); setTimer(0); setProcessingStage(0); }, 500);
+          router.push({ pathname: '/summary', params: { transcript } });
+          setTimeout(() => { 
+            setState('idle'); 
+            setTimer(0); 
+            setProcessingStage(0); 
+            setTranscript(""); 
+            transcriptIndex.current = 0; 
+          }, 500);
         } else {
           setProcessingStage(stage);
         }
       }, 1500);
       return () => clearInterval(interval);
     }
-  }, [state]);
+  }, [state, transcript]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60).toString().padStart(2, '0');
@@ -155,17 +181,9 @@ export default function RecordScreen() {
 
         {(state === 'recording' || state === 'paused') && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
-            <View style={styles.orbContainer}>
-              <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.danger }]} />
-              <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.danger }]} />
-              <Animated.View style={[styles.pulseRing, animatedGlow3, { backgroundColor: theme.colors.danger }]} />
-              
-              <AnimatedPressable 
-                style={[styles.liveOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}
-                scaleTo={0.92}
-              >
-                <Mic size={56} color={theme.colors.danger} />
-              </AnimatedPressable>
+            {/* Visualizer instead of glowing orb */}
+            <View style={styles.visualizerContainer}>
+              <AudioVisualizer isRecording={state === 'recording'} />
             </View>
             
             <View style={styles.statusIndicator}>
@@ -189,6 +207,15 @@ export default function RecordScreen() {
                 <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
               </AnimatedPressable>
             </View>
+
+            {/* Live Transcript Simulation */}
+            <ScrollView style={styles.liveTranscriptContainer} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+               <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>Live Transcript</Text>
+               <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
+                 {transcript}
+                 {state === 'recording' && <Animated.Text entering={FadeIn} exiting={FadeOut} style={{ color: theme.colors.textMuted }}>...</Animated.Text>}
+               </Text>
+            </ScrollView>
           </Animated.View>
         )}
 
@@ -292,6 +319,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 40,
+  },
+  visualizerContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 120,
+    marginBottom: 20,
+  },
+  liveTranscriptContainer: {
+    width: '100%',
+    marginTop: 40,
+    paddingHorizontal: 20,
+    maxHeight: 180,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  liveTranscriptTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  liveTranscriptText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
   },
   pulseRing: {
     position: 'absolute',

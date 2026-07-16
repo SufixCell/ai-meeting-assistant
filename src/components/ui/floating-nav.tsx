@@ -10,16 +10,18 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
   const { width } = useWindowDimensions();
   
   // Calculate max width for the floating nav (like max-w-lg in tailwind)
-  const MAX_WIDTH = Math.min(width - 48, 500); 
-  const TAB_WIDTH = MAX_WIDTH / state.routes.length;
+  const MAX_WIDTH = Math.min(width - 48, 300); // reduced max width for tighter icons
+  // Inner width accounts for the paddingHorizontal: 6 (12 total padding)
+  const INNER_WIDTH = MAX_WIDTH - 12;
+  const TAB_WIDTH = INNER_WIDTH / state.routes.length;
 
   const animatedIndicatorStyle = useAnimatedStyle(() => {
     return {
       transform: [
         {
           translateX: withSpring(state.index * TAB_WIDTH, {
-            damping: 20,
-            stiffness: 300,
+            damping: 25, // higher damping for less wobble
+            stiffness: 250,
           }),
         },
       ],
@@ -43,7 +45,7 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
           style={[
             styles.indicator,
             { 
-              width: TAB_WIDTH - 12,
+              width: TAB_WIDTH,
               backgroundColor: theme.name === 'arctic' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(96, 165, 250, 0.2)', // bg-blue-500/10
             },
             animatedIndicatorStyle,
