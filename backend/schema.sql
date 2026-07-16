@@ -1,5 +1,9 @@
 -- Supabase SQL Schema for AI Meeting Assistant
 
+-- DROP existing tables to fix any text/uuid type mismatches from previous iterations
+drop table if exists public.meetings cascade;
+drop table if exists public.profiles cascade;
+
 -- 1. Create Profiles Table
 create table if not exists public.profiles (
   id uuid references auth.users(id) on delete cascade not null primary key,
