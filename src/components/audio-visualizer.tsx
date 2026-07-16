@@ -12,61 +12,76 @@ import { useTheme } from '../theme';
 
 interface AudioVisualizerProps {
   isRecording: boolean;
+  mediaStream?: any;
 }
 
 const BARS_COUNT = 15;
 
-export function AudioVisualizer({ isRecording }: AudioVisualizerProps) {
+export function AudioVisualizer({ isRecording, mediaStream }: AudioVisualizerProps) {
   const { theme } = useTheme();
   
   // Generate an array of shared values for each bar
   const heights = Array.from({ length: BARS_COUNT }).map(() => useSharedValue(4));
 
   useEffect(() => {
-    if (isRecording) {
-      heights.forEach((height, i) => {
-        const animate = () => {
-          // Generate a random height between 10 and 60
-          const randomHeight = Math.random() * 50 + 10;
-          // Random duration between 150ms and 350ms
-          const randomDuration = Math.random() * 200 + 150;
-          
-          height.value = withTiming(randomHeight, { duration: randomDuration }, () => {
-            // Recursive call for continuous random animation, 
-            // handled by reanimated on the UI thread, but we trigger from JS
-          });
-        };
-        
-        // Instead of complex recursion, let's use withRepeat and withSequence for simplicity
-        // We'll create a continuously repeating sequence of random heights.
-        // Actually, the best way to get truly random looking continuous movement 
-        // is a setInterval that updates the shared value to a new random target.
-      });
-
-      const interval = setInterval(() => {
-        heights.forEach(height => {
-          const randomHeight = Math.random() * 50 + 10;
-          height.value = withTiming(randomHeight, { 
-            duration: 150,
-            easing: Easing.inOut(Easing.ease) 
-          });
-        });
-      }, 150);
-
-      return () => {
-        clearInterval(interval);
-        // Reset heights to flat when stopped
-        heights.forEach(height => {
-          height.value = withTiming(4, { duration: 300 });
-        });
-      };
-    } else {
+    if (!isRecording) {
       // Reset to 4px if not recording
       heights.forEach(height => {
         height.value = withTiming(4, { duration: 300 });
       });
+      return;
     }
-  }, [isRecording]);
+
+    if (isRecording && !mediaStream) {
+      // Fallback: fake animation if no stream yet but recording
+      const interval = setInterval(() => {
+        heights.forEach(height => {
+          const randomHeight = Math.random() * 30 + 10;
+          height.value = withTiming(randomHeight, { duration: 150 });
+        });
+      }, 150);
+      return () => clearInterval(interval);
+    }
+
+    if (isRecording && mediaStream) {
+      // Real audio visualizer using Web Audio API
+      let audioCtx: any;
+      let animationFrame: number;
+
+      try {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(mediaStream);
+        source.connect(analyser);
+        analyser.fftSize = 64;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        const update = () => {
+          if (!isRecording) return;
+          analyser.getByteFrequencyData(dataArray);
+          
+          for (let i = 0; i < BARS_COUNT; i++) {
+            // Map bin value (0-255) to height (4-60)
+            // The first few bins represent low frequencies.
+            const value = dataArray[i];
+            const h = 4 + (value / 255) * 56;
+            heights[i].value = withTiming(h, { duration: 50 });
+          }
+          animationFrame = requestAnimationFrame(update);
+        };
+        update();
+      } catch (err) {
+        console.error('Audio visualizer error:', err);
+      }
+
+      return () => {
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+        if (audioCtx && audioCtx.state !== 'closed') {
+          audioCtx.close().catch(() => {});
+        }
+      };
+    }
+  }, [isRecording, mediaStream]);
 
   return (
     <View style={styles.container}>

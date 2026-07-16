@@ -31,6 +31,7 @@ export default function RecordScreen() {
   // We store live transcript in a ref so the speech API callback always reads current value
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
+  const [mediaStream, setMediaStream] = useState<any>(null);
   const transcriptRef = useRef('');
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
@@ -104,6 +105,7 @@ export default function RecordScreen() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       console.warn('SpeechRecognition not supported in this browser');
+      setDisplayTranscript('Browser not supported. Please use Google Chrome or Microsoft Edge for live transcription.');
       return;
     }
 
@@ -174,7 +176,11 @@ export default function RecordScreen() {
       try { recognitionRef.current.stop(); } catch (_) {}
       recognitionRef.current = null;
     }
-  }, []);
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track: any) => track.stop());
+      setMediaStream(null);
+    }
+  }, [mediaStream]);
 
   // ─── Recording State Machine ──────────────────────────────────────────────
   const handleStartRecording = () => {
@@ -184,7 +190,20 @@ export default function RecordScreen() {
     setTimer(0);
     setState('recording');
     shouldBeRecordingRef.current = true;
-    startRecognition();
+    
+    if (Platform.OS === 'web' && navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          setMediaStream(stream);
+          startRecognition();
+        })
+        .catch(err => {
+          console.error('Mic error:', err);
+          setDisplayTranscript('Microphone access denied. Cannot record.');
+        });
+    } else {
+      startRecognition();
+    }
   };
 
   const handlePause = () => {
@@ -308,7 +327,7 @@ export default function RecordScreen() {
         {/* ── RECORDING / PAUSED ── */}
         {(state === 'recording' || state === 'paused') && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
-            <AudioVisualizer isRecording={state === 'recording'} />
+            <AudioVisualizer isRecording={state === 'recording'} mediaStream={mediaStream} />
 
             <View style={styles.statusIndicator}>
               <View style={[styles.liveDot, { backgroundColor: state === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
@@ -342,7 +361,7 @@ export default function RecordScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>
-                {Platform.OS === 'web' ? '🎤 LIVE TRANSCRIPT' : 'TRANSCRIPT'}
+                {Platform.OS === 'web' ? 'LIVE TRANSCRIPT' : 'TRANSCRIPT'}
               </Text>
               {displayTranscript || interimText ? (
                 <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>

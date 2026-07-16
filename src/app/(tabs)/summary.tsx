@@ -127,7 +127,7 @@ export default function SummaryScreen() {
       {/* Error */}
       {!loading && error && (
         <View style={styles.centered}>
-          <Text style={[styles.loadingTitle, { color: theme.colors.danger }]}>⚠️ Something went wrong</Text>
+          <Text style={[styles.loadingTitle, { color: theme.colors.danger }]}>Something went wrong</Text>
           <Text style={[styles.loadingSub, { color: theme.colors.textMuted }]}>{error}</Text>
         </View>
       )}
