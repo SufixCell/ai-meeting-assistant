@@ -70,10 +70,10 @@ export default function SummaryScreen() {
         setSummary(result);
 
         // Save to Supabase history
-        if (user && !saved) {
+        if (!saved) {
           setSaved(true);
           await supabase.from('meetings').insert({
-            user_id: user.id,
+            user_id: user?.id || '00000000-0000-0000-0000-000000000000',
             title: result.title,
             transcript: transcript,
             summary: result.summary,
