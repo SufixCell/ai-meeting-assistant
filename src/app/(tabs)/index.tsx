@@ -137,14 +137,8 @@ export default function RecordScreen() {
     rec.onerror = (e: any) => {
       console.error('Speech recognition error:', e.error);
       recognitionActiveRef.current = false;
-      // Auto-restart on network errors
-      if (e.error === 'network' || e.error === 'no-speech') {
-        if (shouldBeRecordingRef.current) {
-          setTimeout(() => {
-            if (shouldBeRecordingRef.current) startRecognition();
-          }, 500);
-        }
-      }
+      // We don't restart here because onend will always fire after onerror.
+      // Restarting in both places causes an exponential crash loop.
     };
 
     rec.onend = () => {
@@ -152,8 +146,10 @@ export default function RecordScreen() {
       // Chrome stops recognition automatically — restart if we still should be recording
       if (shouldBeRecordingRef.current) {
         setTimeout(() => {
-          if (shouldBeRecordingRef.current) startRecognition();
-        }, 100);
+          if (shouldBeRecordingRef.current && !recognitionActiveRef.current) {
+            startRecognition();
+          }
+        }, 250);
       }
     };
 
