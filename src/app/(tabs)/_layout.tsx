@@ -38,7 +38,6 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="summary"
           options={{
-            tabBarButton: () => null,
             href: null,
           }}
         />

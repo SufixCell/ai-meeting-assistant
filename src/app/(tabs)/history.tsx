@@ -46,7 +46,7 @@ export default function HistoryScreen() {
             <TouchableOpacity 
               key={meeting.id} 
               style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              onPress={() => router.push('/summary')}
+              onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
             >
               <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
                 <FileText size={20} color={theme.colors.primary} />

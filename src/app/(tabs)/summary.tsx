@@ -27,6 +27,31 @@ export default function SummaryScreen() {
       setError(null);
 
       try {
+        const meetingId = params.meetingId as string;
+
+        // If viewing an existing meeting from history
+        if (meetingId) {
+          const { data, error: dbErr } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('id', meetingId)
+            .single();
+
+          if (dbErr) throw dbErr;
+          if (data) {
+            setRawTranscript(data.transcript || '');
+            setSummary({
+              title: data.title,
+              summary: data.summary,
+              actionItems: data.action_items || [],
+              keyDecisions: data.key_decisions || [],
+            });
+          }
+          setLoading(false);
+          return;
+        }
+
+        // Otherwise, generate a new summary from the passed transcript
         const transcript = (params.transcript as string) || '';
         setRawTranscript(transcript);
 
@@ -58,7 +83,7 @@ export default function SummaryScreen() {
         }
       } catch (err: any) {
         console.error('Summary error:', err);
-        setError(err.message || 'Failed to generate summary');
+        setError(err.message || 'Failed to load summary');
       } finally {
         setLoading(false);
       }
