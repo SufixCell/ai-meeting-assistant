@@ -20,15 +20,38 @@ export default function SummaryScreen() {
   const [summary, setSummary] = useState<MeetingSummary | null>(null);
   const [rawTranscript, setRawTranscript] = useState('');
   const [saved, setSaved] = useState(false);
+  const lastProcessedTranscriptRef = React.useRef<string | null>(null);
+  const lastProcessedMeetingIdRef = React.useRef<string | null>(null);
+
+  const meetingId = params.meetingId as string;
+  const transcriptParam = params.transcript as string;
 
   useEffect(() => {
     const init = async () => {
+      // Prevent double-processing the same transcript (React strict mode or fast re-renders)
+      if (!meetingId && transcriptParam && transcriptParam === lastProcessedTranscriptRef.current) {
+        return;
+      }
+      if (!meetingId && transcriptParam) {
+        lastProcessedTranscriptRef.current = transcriptParam;
+        lastProcessedMeetingIdRef.current = null; // reset
+      }
+      
+      if (meetingId && meetingId === lastProcessedMeetingIdRef.current) {
+        return; // Already loaded this meeting ID
+      }
+      if (meetingId) {
+        lastProcessedMeetingIdRef.current = meetingId;
+        lastProcessedTranscriptRef.current = null; // reset
+      }
+
       setLoading(true);
       setError(null);
+      // Clear previous state so old data doesn't flash
+      setSummary(null);
+      setRawTranscript('');
 
       try {
-        const meetingId = params.meetingId as string;
-
         // If viewing an existing meeting from history
         if (meetingId) {
           const { data, error: dbErr } = await supabase
@@ -52,7 +75,7 @@ export default function SummaryScreen() {
         }
 
         // Otherwise, generate a new summary from the passed transcript
-        const transcript = (params.transcript as string) || '';
+        const transcript = transcriptParam || '';
         setRawTranscript(transcript);
 
         if (!transcript || transcript.trim().length < 5) {
@@ -70,17 +93,15 @@ export default function SummaryScreen() {
         setSummary(result);
 
         // Save to Supabase history
-        if (!saved) {
-          setSaved(true);
-          await supabase.from('meetings').insert({
-            user_id: user?.id || '00000000-0000-0000-0000-000000000000',
-            title: result.title,
-            transcript: transcript,
-            summary: result.summary,
-            action_items: result.actionItems,
-            key_decisions: result.keyDecisions,
-          });
-        }
+        await supabase.from('meetings').insert({
+          user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+          title: result.title,
+          transcript: transcript,
+          summary: result.summary,
+          action_items: result.actionItems,
+          key_decisions: result.keyDecisions,
+        });
+        
       } catch (err: any) {
         console.error('Summary error:', err);
         setError(err.message || 'Failed to load summary');
@@ -90,7 +111,7 @@ export default function SummaryScreen() {
     };
 
     init();
-  }, []);
+  }, [meetingId, transcriptParam]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
