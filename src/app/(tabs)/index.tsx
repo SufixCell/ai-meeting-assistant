@@ -47,13 +47,13 @@ export default function RecordScreen() {
   useEffect(() => {
     if (state === 'idle') {
       glowScale1.value = withRepeat(withTiming(1.2, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale2.value = withRepeat(withDelay(500, withTiming(1.4, { duration: 2500, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowScale2.value = withRepeat(withDelay(500, withTiming(1.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })), -1, true);
       glowScale3.value = 1;
       glowOpacity.value = withRepeat(withTiming(0.1, { duration: 2500 }), -1, true);
     } else if (state === 'recording') {
       glowScale1.value = withRepeat(withTiming(1.3, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale2.value = withRepeat(withDelay(150, withTiming(1.6, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
-      glowScale3.value = withRepeat(withDelay(300, withTiming(1.9, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
+      glowScale2.value = withRepeat(withDelay(150, withTiming(1.6, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
+      glowScale3.value = withRepeat(withDelay(300, withTiming(1.9, { duration: 600, easing: Easing.inOut(Easing.ease) })), -1, true);
       glowOpacity.value = withRepeat(withTiming(0.4, { duration: 600 }), -1, true);
     } else {
       glowScale1.value = withSpring(1);
