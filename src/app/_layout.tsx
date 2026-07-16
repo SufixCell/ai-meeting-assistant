@@ -1,14 +1,15 @@
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { BlurView } from 'expo-blur';
-import { theme } from '../theme';
+import { ThemeProvider, useTheme } from '../theme';
 import { Home, Settings, Clock } from 'lucide-react-native';
 import { View, StyleSheet } from 'react-native';
 
-export default function RootLayout() {
+function TabsLayout() {
+  const { theme } = useTheme();
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -43,6 +44,14 @@ export default function RootLayout() {
         />
       </Tabs>
     </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <TabsLayout />
+    </ThemeProvider>
   );
 }
 
