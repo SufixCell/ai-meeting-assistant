@@ -23,6 +23,8 @@ import { AnimatedPressable } from '../../components/animated-pressable';
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
 
+import { Platform } from 'react-native';
+
 const FAKE_TRANSCRIPT_PARTS = [
   "Alright, let's get started with the Q3 roadmap planning. ",
   "First, I think we should prioritize the mobile app redesign. ",
@@ -39,6 +41,8 @@ export default function RecordScreen() {
   const [processingStage, setProcessingStage] = useState(0);
   const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
   const [transcript, setTranscript] = useState("");
+  const [isListeningReal, setIsListeningReal] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const transcriptIndex = useRef(0);
   const router = useRouter();
   const { theme } = useTheme();
@@ -81,21 +85,69 @@ export default function RecordScreen() {
   const animatedGlow2 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale2.value }], opacity: glowOpacity.value * 0.7 }));
   const animatedGlow3 = useAnimatedStyle(() => ({ transform: [{ scale: glowScale3.value }], opacity: glowOpacity.value * 0.4 }));
 
+  // Web Speech API Initialization
+  useEffect(() => {
+    if (Platform.OS === 'web' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscriptStr = '';
+        let interimTranscriptStr = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscriptStr += event.results[i][0].transcript;
+          } else {
+            interimTranscriptStr += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscriptStr) {
+          setTranscript(prev => prev + finalTranscriptStr + ' ');
+        }
+      };
+
+      recognitionRef.current.onstart = () => {
+        setIsListeningReal(true);
+      };
+
+      recognitionRef.current.onerror = (e: any) => {
+        console.log("Speech recognition error", e);
+        setIsListeningReal(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListeningReal(false);
+      };
+    }
+  }, []);
+
   // Timer & Transcription Logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (state === 'recording') {
+      if (recognitionRef.current && !isListeningReal) {
+        try {
+          recognitionRef.current.start();
+        } catch(e) {}
+      }
+
       interval = setInterval(() => {
         setTimer(t => t + 1);
-        // Append new transcript part every 3 seconds if we have more parts
-        if (timer % 3 === 0 && transcriptIndex.current < FAKE_TRANSCRIPT_PARTS.length) {
+        // Fallback to fake transcript if real speech isn't working/available
+        if (!isListeningReal && timer % 3 === 0 && transcriptIndex.current < FAKE_TRANSCRIPT_PARTS.length) {
           setTranscript(prev => prev + FAKE_TRANSCRIPT_PARTS[transcriptIndex.current]);
           transcriptIndex.current += 1;
         }
       }, 1000);
+    } else if (state === 'paused' || state === 'processing' || state === 'idle') {
+      if (recognitionRef.current && isListeningReal) {
+        recognitionRef.current.stop();
+      }
     }
     return () => clearInterval(interval);
-  }, [state, timer]);
+  }, [state, timer, isListeningReal]);
 
   // Processing Simulation Logic
   useEffect(() => {
