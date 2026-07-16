@@ -5,31 +5,35 @@ import { useTheme } from '../../theme';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { AnimatedPressable } from '../animated-pressable';
 
-// Labels to show under each route name
 const ROUTE_LABELS: Record<string, string> = {
   index: 'Home',
   history: 'History',
   settings: 'Settings',
 };
 
+// Only show these 3 in the nav — summary is hidden
+const VISIBLE_ROUTES = ['index', 'history', 'settings'];
+
 export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
-  const PILL_PADDING = 8; // paddingHorizontal on the pill container
-  const TAB_COUNT = state.routes.length;
+  // Filter to only visible routes
+  const visibleRoutes = state.routes.filter(r => VISIBLE_ROUTES.includes(r.name));
+  // Find the visible index (summary tab should not shift the indicator)
+  const activeVisibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
+  const indicatorIndex = activeVisibleIndex >= 0 ? activeVisibleIndex : 0;
 
-  // Pill width: snug around 3 tabs. Each tab will be ~80px wide.
-  const TAB_WIDTH = 80;
-  const NAV_WIDTH = TAB_WIDTH * TAB_COUNT + PILL_PADDING * 2;
+  const TAB_WIDTH = 84; // fixed width per tab
+  const NAV_WIDTH = TAB_WIDTH * visibleRoutes.length;
+  const isDark = theme.name !== 'arctic';
 
-  // The indicator slides to: paddingLeft + (index * TAB_WIDTH)
-  const indicatorOffset = PILL_PADDING + state.index * TAB_WIDTH;
-
+  // Indicator: no extra offset — just index * TAB_WIDTH
+  // The tab items also start at 0, so they perfectly align
   const animatedIndicatorStyle = useAnimatedStyle(() => ({
     transform: [
       {
-        translateX: withSpring(PILL_PADDING + state.index * TAB_WIDTH, {
+        translateX: withSpring(indicatorIndex * TAB_WIDTH, {
           damping: 28,
           stiffness: 260,
           mass: 0.8,
@@ -37,8 +41,6 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
       },
     ],
   }));
-
-  const isDark = theme.name !== 'arctic';
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -52,7 +54,7 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
           },
         ]}
       >
-        {/* Sliding pill indicator — pixel-perfectly aligned */}
+        {/* Sliding pill — starts at x=0, translates by index * TAB_WIDTH */}
         <Animated.View
           style={[
             styles.indicator,
@@ -64,11 +66,10 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
           ]}
         />
 
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          const isFocused = indicatorIndex === index;
           const label = ROUTE_LABELS[route.name] ?? route.name;
-
           const activeColor = isDark ? '#60A5FA' : '#3B82F6';
           const inactiveColor = isDark ? '#71717A' : '#6B7280';
           const iconColor = isFocused ? activeColor : inactiveColor;
@@ -95,15 +96,13 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
               style={[styles.navItem, { width: TAB_WIDTH }]}
               scaleTo={0.88}
             >
+              {/* Centered icon + label */}
               <View style={styles.itemInner}>
                 {Icon && <Icon focused={isFocused} color={iconColor} size={21} />}
                 <Text
                   style={[
                     styles.label,
-                    {
-                      color: iconColor,
-                      fontWeight: isFocused ? '600' : '400',
-                    },
+                    { color: iconColor, fontWeight: isFocused ? '600' : '400' },
                   ]}
                 >
                   {label}
@@ -146,6 +145,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     bottom: 8,
+    left: 0,           // starts at 0, translateX does the work
     borderRadius: 24,
     zIndex: 0,
   },
