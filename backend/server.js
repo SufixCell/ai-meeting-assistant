@@ -116,6 +116,53 @@ app.post('/api/process-meeting', upload.single('audio'), async (req, res) => {
   }
 });
 
+/**
+ * GET /api/meetings/:userId
+ * Fetch all past meetings for a specific user.
+ */
+app.get('/api/meetings/:userId', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase is not configured' });
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('user_id', req.params.userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('Error fetching meetings:', error);
+    return res.status(500).json({ error: 'Failed to fetch meetings', details: error.message });
+  }
+});
+
+/**
+ * DELETE /api/meetings/:id
+ * Delete a specific meeting.
+ */
+app.delete('/api/meetings/:id', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Supabase is not configured' });
+  }
+
+  try {
+    const { error } = await supabase
+      .from('meetings')
+      .delete()
+      .eq('id', req.params.id);
+      
+    if (error) throw error;
+    return res.status(200).json({ success: true, message: 'Meeting deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting meeting:', error);
+    return res.status(500).json({ error: 'Failed to delete meeting', details: error.message });
+  }
+});
+
 // Health Check
 app.get('/', (req, res) => {
   res.send('AI Meeting Assistant Backend is running!');
