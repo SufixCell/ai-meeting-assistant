@@ -130,13 +130,45 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
             if (status === 'completed' || status === 'call_ended') {
               stopPolling();
               // When completed, fetch the transcript and finalize
-              // (MeetingBaaS typically provides it in data.transcription or similar, but for now we'll just finalize)
-              // If transcription is an array, we'd map it.
-              const transcriptText = Array.isArray(data.transcription) 
-                ? data.transcription.map((t: any) => t.words ? t.words.map((w: any) => w.text).join(' ') : '').join('\n')
-                : typeof data.transcription === 'string' ? data.transcription : '(Transcript data will be processed here)';
+              // In MeetingBaaS V2, transcription text is provided via an S3 URL in data.diarization
+              
+              (async () => {
+                let transcriptText = '(Transcript data will be processed here)';
                 
-              finalizeSession(sessionId, transcriptText);
+                try {
+                  if (data.diarization) {
+                    const tRes = await fetch(data.diarization);
+                    const textData = await tRes.text();
+                    
+                    const lines = textData.split('\\n').filter(l => l.trim());
+                    const utterances = lines.map(l => JSON.parse(l));
+                    
+                    transcriptText = utterances.map((u: any) => {
+                      const speaker = u.speaker || 'Unknown';
+                      let text = '';
+                      if (u.words) {
+                        text = u.words.map((w: any) => w.text).join(' ');
+                      } else if (u.text) {
+                        text = u.text;
+                      }
+                      if (!text.trim()) return '';
+                      return `${speaker}: ${text}`;
+                    }).filter(Boolean).join('\\n');
+                    
+                    if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
+                  } else if (Array.isArray(data.transcription)) {
+                    transcriptText = data.transcription.map((t: any) => t.words ? t.words.map((w: any) => w.text).join(' ') : '').join('\\n');
+                  } else if (typeof data.transcription === 'string') {
+                    transcriptText = data.transcription;
+                  }
+                } catch (e) {
+                  console.error('Failed to parse transcript:', e);
+                  transcriptText = '(Error parsing transcript data)';
+                }
+                
+                finalizeSession(sessionId, transcriptText);
+              })();
+              
               return { ...prev, status: 'processing' };
             }
 
