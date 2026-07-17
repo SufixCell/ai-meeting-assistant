@@ -282,13 +282,17 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
 
     try {
       // Physically remove the bot from the call
-      await fetch(`http://localhost:5000/api/bot/disconnect/${session.sessionId}`, { method: 'POST' });
+      const res = await fetch(`http://localhost:5000/api/bot/disconnect/${session.sessionId}`, { method: 'POST' });
+      
+      if (!res.ok) {
+        throw new Error('Failed to disconnect bot instantly. It may take a minute to leave, or you can remove it manually from the call participants list.');
+      }
       
       // Do NOT stop polling and do NOT finalize here. 
       // The polling loop will detect status='completed' in a few seconds, 
       // grab the transcript from MeetingBaaS, and trigger the finalize flow naturally.
     } catch (e: any) {
-      setSession(prev => prev ? { ...prev, error: e.message } : prev);
+      setSession(prev => prev ? { ...prev, status: 'disconnect_requested', error: e.message } : prev);
     }
   }, [session]);
 

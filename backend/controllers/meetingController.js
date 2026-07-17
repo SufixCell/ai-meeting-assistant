@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const axios = require('axios');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 const transcriptionService = require('../services/transcriptionService');
 const aiService = require('../services/aiService');
 const meetingService = require('../services/meetingService');
@@ -72,42 +74,107 @@ async function processMeeting(req, res) {
 }
 
 async function processBotAudio(req, res) {
-  let audioFilePath = null;
+  let flacFilePath = null;
+  let mp3FilePath = null;
+  let chunkFiles = [];
   try {
     const { audioUrl, title = 'Bot Meeting', userId = 'anonymous' } = req.body;
     if (!audioUrl) {
       return res.status(400).json({ error: 'No audio URL provided' });
     }
 
-    console.log(`Downloading audio from: ${audioUrl}`);
-    const response = await axios({
-      method: 'GET',
-      url: audioUrl,
-      responseType: 'stream'
-    });
+    console.log(`[1/5] Downloading audio from: ${audioUrl}`);
+    flacFilePath = path.join(os.tmpdir(), `bot_audio_${Date.now()}.flac`);
+    
+    // Download with retry
+    let downloaded = false;
+    let downloadError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await axios({
+          method: 'GET',
+          url: audioUrl,
+          responseType: 'stream',
+          timeout: 60000 // 60 seconds generous timeout
+        });
+        
+        const writer = fs.createWriteStream(flacFilePath);
+        response.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+          writer.on('finish', resolve);
+          writer.on('error', reject);
+        });
+        downloaded = true;
+        break;
+      } catch (e) {
+        downloadError = e;
+        console.warn(`Download attempt ${attempt} failed: ${e.message}`);
+        await new Promise(r => setTimeout(r, 2000 * attempt)); // exp backoff
+      }
+    }
+    
+    if (!downloaded) {
+      throw new Error(`Audio download timeout or failure after 3 attempts: ${downloadError?.message}`);
+    }
 
-    audioFilePath = path.join(os.tmpdir(), `bot_audio_${Date.now()}.flac`);
-    const writer = fs.createWriteStream(audioFilePath);
-    
-    response.data.pipe(writer);
-    
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
-
-    console.log('Audio downloaded. Transcribing with Whisper...');
-    const transcriptText = await transcriptionService.transcribeAudio(audioFilePath);
-    
-    // Clean up
+    // Convert to MP3
+    console.log('[2/5] Converting FLAC to MP3 using ffmpeg...');
+    mp3FilePath = path.join(os.tmpdir(), `bot_audio_${Date.now()}.mp3`);
     try {
-      fs.unlinkSync(audioFilePath);
-      audioFilePath = null;
-    } catch (e) {}
+      await exec(`ffmpeg -i "${flacFilePath}" -y -vn -ar 44100 -ac 2 -b:a 192k "${mp3FilePath}"`);
+    } catch (ffmpegErr) {
+      throw new Error(`FFmpeg conversion failed: ${ffmpegErr.message}`);
+    }
 
-    console.log('Summarizing...');
-    const llmOutput = await aiService.summarizeTranscript(transcriptText);
+    // Check size limit (Whisper max is 25MB)
+    console.log('[3/5] Checking file size...');
+    const stats = fs.statSync(mp3FilePath);
+    const fileSizeInMB = stats.size / (1024 * 1024);
+    
+    let transcriptText = "";
+    if (fileSizeInMB > 24) {
+      console.log(`File is ${fileSizeInMB.toFixed(2)}MB (>24MB). Splitting into chunks...`);
+      try {
+        // Split into 15 minute segments
+        const chunkPattern = path.join(os.tmpdir(), `bot_audio_chunk_${Date.now()}_%03d.mp3`);
+        await exec(`ffmpeg -i "${mp3FilePath}" -f segment -segment_time 900 -c copy "${chunkPattern}"`);
+        
+        const files = fs.readdirSync(os.tmpdir());
+        const basePattern = path.basename(chunkPattern).replace('%03d', '');
+        chunkFiles = files.filter(f => f.startsWith(basePattern.substring(0, basePattern.length - 1))).sort();
+        
+        console.log(`Split into ${chunkFiles.length} chunks. Transcribing sequentially...`);
+        for (let i = 0; i < chunkFiles.length; i++) {
+          console.log(`Transcribing chunk ${i+1}/${chunkFiles.length}...`);
+          const chunkPath = path.join(os.tmpdir(), chunkFiles[i]);
+          const chunkText = await transcriptionService.transcribeAudio(chunkPath);
+          transcriptText += chunkText + " ";
+        }
+      } catch (splitErr) {
+        throw new Error(`Audio chunking or transcribing failed: ${splitErr.message}`);
+      }
+    } else {
+      console.log(`File is ${fileSizeInMB.toFixed(2)}MB. Transcribing entirely...`);
+      try {
+        transcriptText = await transcriptionService.transcribeAudio(mp3FilePath);
+      } catch (trErr) {
+        throw new Error(`Whisper transcription failed: ${trErr.message}`);
+      }
+    }
 
+    if (!transcriptText || transcriptText.trim().length === 0) {
+      transcriptText = "(No spoken words were transcribed during this meeting)";
+    }
+
+    console.log('[4/5] Summarizing with LLM...');
+    let llmOutput;
+    try {
+      llmOutput = await aiService.summarizeTranscript(transcriptText);
+    } catch (llmErr) {
+      throw new Error(`LLM Summarization failed: ${llmErr.message}`);
+    }
+
+    console.log('[5/5] Saving to Database...');
     const resultData = {
       user_id: userId,
       title: title,
@@ -115,6 +182,11 @@ async function processBotAudio(req, res) {
       summary: llmOutput.summary,
       action_items: llmOutput.actionItems,
     };
+
+    // Clean up files before returning
+    [flacFilePath, mp3FilePath, ...chunkFiles.map(f => path.join(os.tmpdir(), f))].forEach(f => {
+      if (f && fs.existsSync(f)) try { fs.unlinkSync(f); } catch (e) {}
+    });
 
     if (supabase) {
       try {
@@ -128,9 +200,12 @@ async function processBotAudio(req, res) {
     return res.status(200).json(resultData);
   } catch (error) {
     console.error('Error processing bot audio:', error);
-    if (audioFilePath && fs.existsSync(audioFilePath)) {
-      try { fs.unlinkSync(audioFilePath); } catch (e) {}
-    }
+    
+    // Clean up files on error
+    [flacFilePath, mp3FilePath, ...chunkFiles.map(f => path.join(os.tmpdir(), f))].forEach(f => {
+      if (f && fs.existsSync(f)) try { fs.unlinkSync(f); } catch (e) {}
+    });
+
     return res.status(500).json({ error: 'Failed to process bot audio', details: error.message });
   }
 }

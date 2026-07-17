@@ -427,7 +427,11 @@ export default function RecordScreen() {
                   </Text>
                 ) : (
                   <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
-                    {botSession?.status === 'joining' ? 'Bot is joining the meeting...' : botSession?.status === 'disconnecting' ? 'Bot is leaving the meeting...' : 'Listening...'}
+                    {botSession?.status === 'joining' 
+                      ? 'Joining... this usually takes 20-30 seconds' 
+                      : botSession?.status === 'disconnecting' 
+                        ? 'Bot is leaving the meeting...' 
+                        : 'Recording in progress — transcript will be ready shortly after the call ends'}
                   </Text>
                 )
               ) : (displayTranscript || interimText) ? (
