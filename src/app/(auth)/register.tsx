@@ -17,8 +17,8 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!username || !email || !phone || !password) {
-      setError('Please fill in all fields');
+    if (!username || !email || !password) {
+      setError('Please fill in required fields');
       return;
     }
     
@@ -44,24 +44,25 @@ export default function RegisterScreen() {
 
     // Format phone number to start with + if it doesn't already, assuming country code is entered
     let formattedPhone = phone.trim();
-    if (!formattedPhone.startsWith('+')) {
-      // Supabase strictly requires E.164 format (+1234567890)
-      // We'll append a + and hope the user entered a country code. 
-      // Alternatively, we let Supabase throw an invalid phone error.
+    if (formattedPhone && !formattedPhone.startsWith('+')) {
       formattedPhone = '+' + formattedPhone;
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const signUpData: any = {
       email,
       password,
-      phone: formattedPhone,
       options: {
         data: {
           username,
-          phone: formattedPhone,
+          ...(formattedPhone ? { phone: formattedPhone } : {})
         }
       }
-    });
+    };
+    if (formattedPhone) {
+      signUpData.phone = formattedPhone;
+    }
+
+    const { error: signUpError } = await supabase.auth.signUp(signUpData);
 
     setLoading(false);
     if (signUpError) {
@@ -125,7 +126,7 @@ export default function RegisterScreen() {
             <Phone size={20} color={theme.colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.colors.text }]} 
-              placeholder="Phone (e.g. 1234567890)"
+              placeholder="Phone (Optional)"
               placeholderTextColor={theme.colors.textMuted}
               keyboardType="phone-pad"
               value={phone}
