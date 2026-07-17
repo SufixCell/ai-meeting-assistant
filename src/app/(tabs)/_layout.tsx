@@ -1,13 +1,15 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../theme';
 import { Home, Settings, Clock } from 'lucide-react-native';
 import { FloatingNav } from '../../components/ui/floating-nav';
+import { BotSessionBanner } from '../../components/bot-session-banner';
 
 export default function TabsLayout() {
   const { theme } = useTheme();
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
       <Tabs
         tabBar={(props) => <FloatingNav {...props} />}
@@ -42,6 +44,8 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-    </>
+      {/* Bot banner floats over all tabs */}
+      <BotSessionBanner />
+    </View>
   );
 }

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../../theme';
-import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight } from 'lucide-react-native';
+import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight, Video } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { AudioVisualizer } from '../../components/audio-visualizer';
+import { JoinCallModal } from '../../components/join-call-modal';
+import { AnimatedPressable } from '../../components/animated-pressable';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -29,6 +31,7 @@ export default function RecordScreen() {
   const [timer, setTimer] = useState(0);
   const [processingStage, setProcessingStage] = useState(0);
   const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
   // We store live transcript in a ref so the speech API callback always reads current value
   const [displayTranscript, setDisplayTranscript] = useState('');
   const [interimText, setInterimText] = useState('');
@@ -318,6 +321,19 @@ export default function RecordScreen() {
             <Text style={[styles.description, { color: theme.colors.textMuted }]}>
               Record your meeting. AI will generate a transcript, summary, and action items automatically.
             </Text>
+
+            {/* Join a Meeting button */}
+            <AnimatedPressable
+              onPress={() => setJoinModalVisible(true)}
+              scaleTo={0.95}
+              style={[styles.joinCallButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+            >
+              <View style={[styles.joinCallIcon, { backgroundColor: theme.colors.primary + '22' }]}>
+                <Video size={18} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.joinCallText, { color: theme.colors.text }]}>Join a Meeting</Text>
+              <ChevronRight size={16} color={theme.colors.textMuted} />
+            </AnimatedPressable>
           </Animated.View>
         )}
 
@@ -443,6 +459,9 @@ export default function RecordScreen() {
           </ScrollView>
         </Animated.View>
       )}
+
+      {/* Join Call Modal */}
+      <JoinCallModal visible={joinModalVisible} onClose={() => setJoinModalVisible(false)} />
     </View>
   );
 }
@@ -526,6 +545,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: '85%',
+  },
+  joinCallButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignSelf: 'center',
+  },
+  joinCallIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinCallText: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
   },
 
   statusIndicator: {

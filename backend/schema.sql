@@ -82,6 +82,8 @@ create table if not exists public.meetings (
   summary text,
   action_items jsonb default '[]'::jsonb,
   key_decisions jsonb default '[]'::jsonb,
+  source text default 'mic',           -- 'mic' | 'bot'
+  platform text,                        -- 'zoom' | 'meet' | 'teams' | 'discord' | null
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

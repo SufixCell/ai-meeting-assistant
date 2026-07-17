@@ -1,10 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../theme';
-import { FileText, Calendar, Search, ChevronRight } from 'lucide-react-native';
+import { FileText, Calendar, Search, ChevronRight, Mic, Video, Hash } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
+import { BotPlatform } from '../../contexts/BotSessionContext';
+
+// ─── Source badge ─────────────────────────────────────────────────────────────
+
+function SourceTag({ source, platform }: { source?: string; platform?: BotPlatform }) {
+  const { theme } = useTheme();
+  if (!source || source === 'mic') {
+    return (
+      <View style={[styles.sourceTag, { backgroundColor: theme.colors.primary + '18', borderColor: theme.colors.primary + '44' }]}>
+        <Mic size={11} color={theme.colors.primary} />
+      </View>
+    );
+  }
+  const platformColors: Record<string, string> = {
+    zoom: '#2D8CFF',
+    meet: '#00897B',
+    teams: '#5B5EA6',
+    discord: '#5865F2',
+  };
+  const color = platformColors[platform ?? ''] ?? '#9CA3AF';
+  const Icon = platform === 'discord' ? Hash : Video;
+  return (
+    <View style={[styles.sourceTag, { backgroundColor: color + '18', borderColor: color + '44' }]}>
+      <Icon size={11} color={color} />
+    </View>
+  );
+}
 
 export default function HistoryScreen() {
   const { theme } = useTheme();
@@ -60,7 +87,9 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
               </View>
-              <ChevronRight size={20} color={theme.colors.textMuted} />
+              {/* Source icon */}
+              <SourceTag source={meeting.source} platform={meeting.platform} />
+              <ChevronRight size={20} color={theme.colors.textMuted} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -132,5 +161,14 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
+  },
+  sourceTag: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 });

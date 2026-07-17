@@ -2,6 +2,7 @@ import './global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { ThemeProvider } from '../theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { BotSessionProvider } from '../contexts/BotSessionContext';
 import { useEffect } from 'react';
 
 function RootLayoutNav() {
@@ -34,7 +35,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <RootLayoutNav />
+        <BotSessionProvider>
+          <RootLayoutNav />
+        </BotSessionProvider>
       </ThemeProvider>
     </AuthProvider>
   );
