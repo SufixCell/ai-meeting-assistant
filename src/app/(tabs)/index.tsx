@@ -21,7 +21,6 @@ import Animated, {
   FadeOut,
   SlideInDown,
 } from 'react-native-reanimated';
-import { AnimatedPressable } from '../../components/animated-pressable';
 
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
