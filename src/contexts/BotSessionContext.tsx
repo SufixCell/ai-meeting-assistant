@@ -108,18 +108,26 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
             if (!prev || prev.sessionId !== sessionId) return prev;
             
             // Map MeetingBaaS status to our UI status
-            // MeetingBaaS status can be: joining, joined, recording, completed, failed
+            const status = typeof data.status === 'string' ? data.status.toLowerCase() : '';
+            const errorCode = data.error_code || (data.bot_data && data.bot_data.error_code);
             let newStatus: BotSessionStatus = prev.status;
             
-            if (data.status === 'joining') newStatus = 'joining';
-            if (data.status === 'joined' || data.status === 'recording') newStatus = 'in_call';
-            
-            if (data.status === 'failed') {
-              stopPolling();
-              return { ...prev, status: 'idle', error: data.error_message || 'Bot failed to join or was kicked' };
+            const activeStatuses = ['joined', 'recording', 'in_call', 'in_call_recording', 'in_call_not_recording', 'active'];
+            const joiningStatuses = ['joining', 'joining_call', 'in_waiting_room'];
+            const failedStatuses = ['failed', 'fatal', 'bot_rejected', 'bot_removed', 'invalid_meeting_url', 'meeting_error', 'waiting_room_timeout'];
+
+            if (joiningStatuses.includes(status)) {
+              newStatus = 'joining';
+            } else if (activeStatuses.includes(status)) {
+              newStatus = 'in_call';
             }
             
-            if (data.status === 'completed') {
+            if (failedStatuses.includes(status) || errorCode) {
+              stopPolling();
+              return { ...prev, status: 'idle', error: data.error_message || errorCode || 'Bot failed to join or was kicked' };
+            }
+            
+            if (status === 'completed' || status === 'call_ended') {
               stopPolling();
               // When completed, fetch the transcript and finalize
               // (MeetingBaaS typically provides it in data.transcription or similar, but for now we'll just finalize)
