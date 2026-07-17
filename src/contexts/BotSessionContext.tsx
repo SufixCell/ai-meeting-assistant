@@ -160,6 +160,8 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                     transcriptText = data.transcription.map((t: any) => t.words ? t.words.map((w: any) => w.text).join(' ') : '').join('\\n');
                   } else if (typeof data.transcription === 'string') {
                     transcriptText = data.transcription;
+                  } else {
+                    transcriptText = '(No spoken words were transcribed during this meeting)';
                   }
                 } catch (e) {
                   console.error('Failed to parse transcript:', e);
