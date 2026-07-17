@@ -156,10 +156,24 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                     }).filter(Boolean).join('\\n');
                     
                     if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
-                  } else if (Array.isArray(data.transcription)) {
-                    transcriptText = data.transcription.map((t: any) => t.words ? t.words.map((w: any) => w.text).join(' ') : '').join('\\n');
-                  } else if (typeof data.transcription === 'string') {
-                    transcriptText = data.transcription;
+                  } else if (data.transcription) {
+                    // In v2, data.transcription can be a URL to the JSON
+                    let trData = data.transcription;
+                    if (typeof data.transcription === 'string' && data.transcription.startsWith('http')) {
+                      const tRes = await fetch(data.transcription);
+                      trData = await tRes.json();
+                    }
+                    
+                    if (Array.isArray(trData)) {
+                       transcriptText = trData.map((t: any) => {
+                         const speaker = t.speaker || 'Unknown';
+                         const text = t.words ? t.words.map((w: any) => w.text).join(' ') : t.text || '';
+                         return text ? `${speaker}: ${text}` : '';
+                       }).filter(Boolean).join('\\n');
+                    } else if (typeof trData === 'string') {
+                       transcriptText = trData;
+                    }
+                    if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
                   } else {
                     transcriptText = '(No spoken words were transcribed during this meeting)';
                   }

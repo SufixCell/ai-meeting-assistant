@@ -11,7 +11,7 @@ async function joinMeeting(meetingUrl) {
                 bot_name: "AI Meeting Assistant",
                 recording_mode: "speaker_view",
                 speech_to_text: {
-                    provider: "Gladia"
+                    provider: "Default"
                 },
                 webhook_url: global.WEBHOOK_URL ? `${global.WEBHOOK_URL}/api/bot/webhook` : undefined,
                 reserved: false
