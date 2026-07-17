@@ -9,6 +9,8 @@ import { AudioVisualizer } from '../../components/audio-visualizer';
 import { JoinCallModal } from '../../components/join-call-modal';
 import { AnimatedPressable } from '../../components/animated-pressable';
 import { BlurView } from 'expo-blur';
+import { io } from 'socket.io-client';
+import { useBotSession } from '../../contexts/BotSessionContext';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -42,6 +44,44 @@ export default function RecordScreen() {
   const shouldBeRecordingRef = useRef(false);
   const router = useRouter();
   const { theme } = useTheme();
+
+  // ─── Bot Session & Socket ──────────────────────────────────────────────────
+  const { session: botSession, disconnectBot } = useBotSession();
+  const [botTranscript, setBotTranscript] = useState('');
+
+  useEffect(() => {
+    if (botSession?.status === 'joining' || botSession?.status === 'in_call' || botSession?.status === 'disconnecting') {
+      const socket = io('http://localhost:5000');
+      
+      socket.on('webhook_event', (event) => {
+        // Handle MeetingBaaS status change webhook to update UI fast
+        if (event?.event === 'bot.status_change' && event?.data?.status) {
+          const status = event.data.status.toLowerCase();
+          const activeStatuses = ['joined', 'recording', 'in_call', 'in_call_recording', 'in_call_not_recording', 'active'];
+          if (activeStatuses.includes(status)) {
+             setBotTranscript(prev => prev || 'Listening to meeting audio...');
+          }
+        }
+        
+        // MeetingBaaS typically sends 'bot.transcript' or similar events with 'text'
+        const text = event?.data?.text || event?.data?.transcript || event?.text || '';
+        if (text) {
+          setBotTranscript(prev => prev + ' ' + text);
+        }
+      });
+      
+      return () => {
+        socket.disconnect();
+      };
+    } else {
+      setBotTranscript('');
+    }
+  }, [botSession?.status]);
+
+  // Derived state to know if WE should show the recording UI (either local or bot)
+  const isBotRecording = botSession?.status === 'joining' || botSession?.status === 'in_call' || botSession?.status === 'disconnecting';
+  const effectiveState = isBotRecording ? (botSession?.status === 'disconnecting' ? 'processing' : 'recording') : state;
+  const isBotUI = isBotRecording;
 
   // ─── Fetch recent meetings ────────────────────────────────────────────────
   useEffect(() => {
@@ -290,9 +330,9 @@ export default function RecordScreen() {
 
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: theme.colors.textMuted }]}>
-          {state === 'idle' ? 'AI Meeting Assistant' : 'Recording'}
+          {effectiveState === 'idle' ? 'AI Meeting Assistant' : isBotUI ? 'Bot Recording' : 'Recording'}
         </Text>
-        {state === 'idle' && (
+        {effectiveState === 'idle' && (
           <Text style={[styles.headline, { color: theme.colors.text }]}>
             Ready to capture your next meeting?
           </Text>
@@ -301,7 +341,7 @@ export default function RecordScreen() {
 
       <View style={styles.centerStage}>
         {/* ── IDLE ── */}
-        {state === 'idle' && (
+        {effectiveState === 'idle' && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.idleState}>
             <View style={styles.orbContainer}>
               <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.primary }]} />
@@ -338,29 +378,33 @@ export default function RecordScreen() {
         )}
 
         {/* ── RECORDING / PAUSED ── */}
-        {(state === 'recording' || state === 'paused') && (
+        {(effectiveState === 'recording' || effectiveState === 'paused') && (
           <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
-            <AudioVisualizer isRecording={state === 'recording'} mediaStream={mediaStream} />
+            <AudioVisualizer isRecording={effectiveState === 'recording'} mediaStream={mediaStream} />
 
             <View style={styles.statusIndicator}>
-              <View style={[styles.liveDot, { backgroundColor: state === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
-              <Text style={[styles.timer, { color: theme.colors.text }]}>{formatTime(timer)}</Text>
-              {state === 'recording' && (
+              <View style={[styles.liveDot, { backgroundColor: effectiveState === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
+              <Text style={[styles.timer, { color: theme.colors.text }]}>
+                {isBotUI ? 'BOT IN CALL' : formatTime(timer)}
+              </Text>
+              {effectiveState === 'recording' && (
                 <Text style={[styles.liveLabel, { color: theme.colors.danger }]}>LIVE</Text>
               )}
             </View>
 
             <View style={styles.controlsRow}>
-              <AnimatedPressable
-                style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
-                onPress={handlePause}
-                scaleTo={0.85}
-              >
-                {state === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
-              </AnimatedPressable>
+              {!isBotUI && (
+                <AnimatedPressable
+                  style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
+                  onPress={handlePause}
+                  scaleTo={0.85}
+                >
+                  {effectiveState === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
+                </AnimatedPressable>
+              )}
               <AnimatedPressable
                 style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]}
-                onPress={handleStop}
+                onPress={isBotUI ? () => disconnectBot() : handleStop}
                 scaleTo={0.85}
               >
                 <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
@@ -374,9 +418,19 @@ export default function RecordScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>
-                {Platform.OS === 'web' ? 'LIVE TRANSCRIPT' : 'TRANSCRIPT'}
+                {isBotUI ? 'LIVE TRANSCRIPT (BOT)' : Platform.OS === 'web' ? 'LIVE TRANSCRIPT' : 'TRANSCRIPT'}
               </Text>
-              {displayTranscript || interimText ? (
+              {isBotUI ? (
+                botTranscript ? (
+                  <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
+                    {botTranscript}
+                  </Text>
+                ) : (
+                  <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
+                    {botSession?.status === 'joining' ? 'Bot is joining the meeting...' : botSession?.status === 'disconnecting' ? 'Bot is leaving the meeting...' : 'Listening...'}
+                  </Text>
+                )
+              ) : (displayTranscript || interimText) ? (
                 <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
                   {displayTranscript}
                   {interimText ? (
@@ -385,7 +439,7 @@ export default function RecordScreen() {
                 </Text>
               ) : (
                 <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
-                  {state === 'recording'
+                  {effectiveState === 'recording'
                     ? Platform.OS === 'web'
                       ? 'Listening... Start speaking.'
                       : 'Recording audio...'
@@ -397,7 +451,7 @@ export default function RecordScreen() {
         )}
 
         {/* ── PROCESSING ── */}
-        {state === 'processing' && (
+        {effectiveState === 'processing' && (
           <Animated.View entering={FadeIn.delay(300)} exiting={FadeOut} style={styles.processingState}>
             <View style={[styles.aiPulseContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
               <Sparkles size={40} color={theme.colors.primary} />
@@ -416,7 +470,7 @@ export default function RecordScreen() {
       </View>
 
       {/* Recent Meetings */}
-      {state === 'idle' && recentMeetings.length > 0 && (
+      {effectiveState === 'idle' && recentMeetings.length > 0 && (
         <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
           <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Recordings</Text>
           <ScrollView 

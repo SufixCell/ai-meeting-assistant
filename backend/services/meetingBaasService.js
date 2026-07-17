@@ -13,6 +13,7 @@ async function joinMeeting(meetingUrl) {
                 speech_to_text: {
                     provider: "Gladia"
                 },
+                webhook_url: global.WEBHOOK_URL ? `${global.WEBHOOK_URL}/api/bot/webhook` : undefined,
                 reserved: false
             },
             {

@@ -53,6 +53,7 @@ const STATUS_LABELS = {
 export function BotSessionBanner() {
   const { theme } = useTheme();
   const { session, disconnectBot, clearError } = useBotSession();
+  const pathname = require('expo-router').usePathname();
   const elapsed = useElapsed(session?.startedAt ?? null);
   const isDark = theme.name !== 'arctic';
 
@@ -81,6 +82,11 @@ export function BotSessionBanner() {
 
   if (!session || session.status === 'idle') {
     // Show error banner briefly if session had an error but is now cleared
+    return null;
+  }
+
+  if (pathname === '/' && (session.status === 'in_call' || session.status === 'joining')) {
+    // Hide the small banner on the home screen because we have the giant full-screen Bot UI there!
     return null;
   }
 
