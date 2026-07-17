@@ -14,14 +14,14 @@ const ROUTE_LABELS: Record<string, string> = {
 // Only show these 3 in the nav — summary is hidden
 const VISIBLE_ROUTES = ['index', 'history', 'settings'];
 
-export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProps) {
+export function FloatingNav({ state, descriptors, navigation }: any) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
   // Filter to only visible routes
-  const visibleRoutes = state.routes.filter(r => VISIBLE_ROUTES.includes(r.name));
+  const visibleRoutes = state.routes.filter((r: any) => VISIBLE_ROUTES.includes(r.name));
   // Find the visible index (summary tab should not shift the indicator)
-  const activeVisibleIndex = visibleRoutes.findIndex(r => r.key === state.routes[state.index]?.key);
+  const activeVisibleIndex = visibleRoutes.findIndex((r: any) => r.key === state.routes[state.index]?.key);
   const indicatorIndex = activeVisibleIndex >= 0 ? activeVisibleIndex : 0;
 
   const TAB_WIDTH = 84; // fixed width per tab
@@ -66,8 +66,8 @@ export function FloatingNav({ state, descriptors, navigation }: BottomTabBarProp
           ]}
         />
 
-        {visibleRoutes.map((route, index) => {
-          const { options } = descriptors[route.key];
+        {visibleRoutes.map((route: any, index: number) => {
+          const { options } = descriptors[route.key] as any;
           const isFocused = indicatorIndex === index;
           const label = ROUTE_LABELS[route.name] ?? route.name;
           const activeColor = isDark ? '#60A5FA' : '#3B82F6';

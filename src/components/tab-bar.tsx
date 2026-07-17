@@ -9,7 +9,7 @@ import { AnimatedPressable } from './animated-pressable';
 const { width } = Dimensions.get('window');
 const TAB_BAR_WIDTH = width - 48; // 24 padding on each side
 
-export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function CustomTabBar({ state, descriptors, navigation }: any) {
   const { theme } = useTheme();
   const TAB_WIDTH = TAB_BAR_WIDTH / state.routes.length;
 
@@ -48,8 +48,8 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             ]}
           />
 
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
+          {state.routes.map((route: any, index: number) => {
+            const { options } = descriptors[route.key] as any;
             const isFocused = state.index === index;
 
             const onPress = () => {
