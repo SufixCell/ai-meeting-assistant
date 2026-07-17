@@ -61,6 +61,39 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
   const pollRef = useRef<any>(null);
   const router = useRouter();
 
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // ── Finalize session (processing → summary) ──────────────────────────────
+  const finalizeSession = useCallback(async (sessionId: string, transcript: string) => {
+    setSession(prev => prev ? { ...prev, status: 'processing' } : prev);
+    try {
+      const summary = await generateMeetingSummary(transcript);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('meetings').insert({
+          user_id: user.id,
+          title: summary.title,
+          transcript,
+          summary: summary.summary,
+          action_items: summary.actionItems,
+          key_decisions: summary.keyDecisions,
+          source: 'bot', // differentiates from mic recordings
+        });
+      }
+      router.push({ pathname: '/summary', params: { transcript } });
+    } catch (e) {
+      console.error('Bot finalize error:', e);
+    } finally {
+      stopPolling();
+      setSession(null);
+    }
+  }, [router, stopPolling]);
+
   // ── Poll the backend for session status ──────────────────────────────────
   const startPolling = useCallback((sessionId: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -106,40 +139,7 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
         console.error("Polling error:", err);
       }
     }, POLL_INTERVAL_MS);
-  }, [finalizeSession]);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  // ── Finalize session (processing → summary) ──────────────────────────────
-  const finalizeSession = useCallback(async (sessionId: string, transcript: string) => {
-    setSession(prev => prev ? { ...prev, status: 'processing' } : prev);
-    try {
-      const summary = await generateMeetingSummary(transcript);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('meetings').insert({
-          user_id: user.id,
-          title: summary.title,
-          transcript,
-          summary: summary.summary,
-          action_items: summary.actionItems,
-          key_decisions: summary.keyDecisions,
-          source: 'bot', // differentiates from mic recordings
-        });
-      }
-      router.push({ pathname: '/summary', params: { transcript } });
-    } catch (e) {
-      console.error('Bot finalize error:', e);
-    } finally {
-      stopPolling();
-      setSession(null);
-    }
-  }, [router, stopPolling]);
+  }, [finalizeSession, stopPolling]);
 
   // ── Join a meeting link ───────────────────────────────────────────────────
   const joinMeetingLink = useCallback(async (url: string) => {
