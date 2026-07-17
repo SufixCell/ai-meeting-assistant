@@ -58,7 +58,7 @@ const POLL_INTERVAL_MS = 5000;
 
 export function BotSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<BotSession | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const pollRef = useRef<any>(null);
   const router = useRouter();
 
   // ── Poll the backend for session status ──────────────────────────────────

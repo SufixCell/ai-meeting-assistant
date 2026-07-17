@@ -22,6 +22,7 @@ import Animated, {
   SlideInDown,
 } from 'react-native-reanimated';
 
+
 const { width } = Dimensions.get('window');
 type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
 
@@ -95,7 +96,7 @@ export default function RecordScreen() {
           stream.getTracks().forEach(track => track.stop());
         })
         .catch((err) => {
-          console.error('Microphone permission error:', err);
+          console.warn('Microphone permission error:', err);
           alert('Microphone access is required. Please allow microphone access in your browser settings or click the microphone icon in the URL bar.');
         });
     }
@@ -138,7 +139,7 @@ export default function RecordScreen() {
     };
 
     rec.onerror = (e: any) => {
-      console.error('Speech recognition error:', e.error);
+      console.warn('Speech recognition error:', e.error);
       recognitionActiveRef.current = false;
       // We don't restart here because onend will always fire after onerror.
       // Restarting in both places causes an exponential crash loop.
