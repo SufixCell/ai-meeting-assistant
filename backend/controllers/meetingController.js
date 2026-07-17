@@ -114,9 +114,39 @@ async function joinOnlineMeeting(req, res) {
   }
 }
 
+async function getBotStatus(req, res) {
+  try {
+    const { botId } = req.params;
+    if (!botId) return res.status(400).json({ error: "botId is required" });
+
+    // Call MeetingBaaS API to get status
+    const statusData = await meetingService.getBotStatus?.(botId) || 
+                       await require('../services/meetingBaasService').getBotStatus(botId);
+    return res.json(statusData);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+async function disconnectBot(req, res) {
+  try {
+    const { botId } = req.params;
+    if (!botId) return res.status(400).json({ error: "botId is required" });
+
+    // Call MeetingBaaS API to disconnect bot
+    const result = await meetingService.leaveMeeting?.(botId) || 
+                   await require('../services/meetingBaasService').leaveMeeting(botId);
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   processMeeting,
   getMeetingsByUser,
   deleteMeeting,
-  joinOnlineMeeting
+  joinOnlineMeeting,
+  getBotStatus,
+  disconnectBot
 };

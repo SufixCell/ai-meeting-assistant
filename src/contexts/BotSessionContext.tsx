@@ -66,17 +66,47 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        // TODO (Mujtaba): replace with real endpoint
-        // const res = await fetch(`/api/bot/status/${sessionId}`);
-        // const data = await res.json();
-        // Stub: simulate progression for UI wiring
-        setSession(prev => {
-          if (!prev || prev.sessionId !== sessionId) return prev;
-          return prev; // real logic: update from data.status
-        });
-      } catch (_) {}
+        const res = await fetch(`http://localhost:5000/api/bot/status/${sessionId}`);
+        const result = await res.json();
+        const data = result.data || result; // Handle MeetingBaaS nested data
+        
+        if (data.status) {
+          setSession(prev => {
+            if (!prev || prev.sessionId !== sessionId) return prev;
+            
+            // Map MeetingBaaS status to our UI status
+            // MeetingBaaS status can be: joining, joined, recording, completed, failed
+            let newStatus: BotSessionStatus = prev.status;
+            
+            if (data.status === 'joining') newStatus = 'joining';
+            if (data.status === 'joined' || data.status === 'recording') newStatus = 'in_call';
+            
+            if (data.status === 'failed') {
+              stopPolling();
+              return { ...prev, status: 'idle', error: data.error_message || 'Bot failed to join or was kicked' };
+            }
+            
+            if (data.status === 'completed') {
+              stopPolling();
+              // When completed, fetch the transcript and finalize
+              // (MeetingBaaS typically provides it in data.transcription or similar, but for now we'll just finalize)
+              // If transcription is an array, we'd map it.
+              const transcriptText = Array.isArray(data.transcription) 
+                ? data.transcription.map((t: any) => t.words ? t.words.map((w: any) => w.text).join(' ') : '').join('\n')
+                : typeof data.transcription === 'string' ? data.transcription : '(Transcript data will be processed here)';
+                
+              finalizeSession(sessionId, transcriptText);
+              return { ...prev, status: 'processing' };
+            }
+
+            return { ...prev, status: newStatus };
+          });
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
     }, POLL_INTERVAL_MS);
-  }, []);
+  }, [finalizeSession]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -136,11 +166,10 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error(data.error || 'Failed to join meeting');
       
       // MeetingBaaS returns bot details. We assume success and start polling.
-      // (Mujtaba hasn't built the status/disconnect endpoints yet, so we still stub the progression)
       const botId = data.data?.bot_id || data.bot_id || tempId;
-      setSession(prev => prev ? { ...prev, sessionId: botId, status: 'in_call' } : prev);
-      
-      // startPolling(botId); // Uncomment when /api/bot/status is built
+      // We start polling immediately. The status will update to 'in_call' when the backend says so.
+      setSession(prev => prev ? { ...prev, sessionId: botId } : prev);
+      startPolling(botId);
     } catch (e: any) {
       setSession(prev => prev ? { ...prev, status: 'idle', error: e.message } : prev);
     }
@@ -176,13 +205,11 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
     stopPolling();
 
     try {
-      // TODO (Mujtaba): call disconnect endpoint
-      // await fetch(`/api/bot/disconnect/${session.sessionId}`, { method: 'POST' });
-      // Then get the transcript from the response and finalize:
-      // await finalizeSession(session.sessionId, data.transcript);
-
-      // STUB: finalize with placeholder transcript
-      await finalizeSession(session.sessionId, '(Bot transcript will appear here once backend is wired)');
+      await fetch(`http://localhost:5000/api/bot/disconnect/${session.sessionId}`, { method: 'POST' });
+      // The disconnect endpoint will remove the bot, but we won't get the transcript instantly
+      // from the DELETE response. MeetingBaaS usually requires webhooks for transcripts.
+      // For now, finalize with a placeholder until we set up webhooks.
+      await finalizeSession(session.sessionId, '(Bot disconnected. Transcript will be fetched soon)');
     } catch (e: any) {
       setSession(prev => prev ? { ...prev, error: e.message } : prev);
     }

@@ -17,4 +17,10 @@ router.delete('/meetings/:id', meetingController.deleteMeeting);
 // POST /api/online-meeting/join
 router.post('/online-meeting/join', meetingController.joinOnlineMeeting);
 
+// GET /api/bot/status/:botId
+router.get('/bot/status/:botId', meetingController.getBotStatus);
+
+// POST /api/bot/disconnect/:botId
+router.post('/bot/disconnect/:botId', meetingController.disconnectBot);
+
 module.exports = router;

@@ -31,6 +31,45 @@ async function joinMeeting(meetingUrl) {
     }
 }
 
+async function getBotStatus(botId) {
+    try {
+        const response = await axios.get(
+            `${API_URL}/${botId}`,
+            {
+                headers: {
+                    "x-meeting-baas-api-key": process.env.MEETING_BAAS_API_KEY
+                }
+            }
+        );
+        return response.data;
+    } catch (err) {
+        console.error("Error getting bot status:", err.response?.data || err.message);
+        throw err;
+    }
+}
+
+async function leaveMeeting(botId) {
+    try {
+        // According to MeetingBaaS API, DELETE removes the bot
+        const response = await axios.delete(
+            `${API_URL}/${botId}`,
+            {
+                headers: {
+                    "x-meeting-baas-api-key": process.env.MEETING_BAAS_API_KEY
+                }
+            }
+        );
+        return response.data;
+    } catch (err) {
+        console.error("Error leaving meeting:", err.response?.data || err.message);
+        // It might return 404 if the bot is already gone
+        if (err.response?.status === 404) return { success: true };
+        throw err;
+    }
+}
+
 module.exports = {
-    joinMeeting
+    joinMeeting,
+    getBotStatus,
+    leaveMeeting
 };
