@@ -126,22 +126,20 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      // TODO (Mujtaba): replace stub with real API call
-      // const res = await fetch('/api/bot/join', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ url }),
-      // });
-      // const data = await res.json();
-      // if (!res.ok) throw new Error(data.message || 'Failed to join');
-      // setSession(prev => prev ? { ...prev, sessionId: data.sessionId, status: 'in_call' } : prev);
-      // startPolling(data.sessionId);
-
-      // STUB: transition to in_call after 2s
-      setTimeout(() => {
-        setSession(prev => prev ? { ...prev, status: 'in_call' } : prev);
-        startPolling(tempId);
-      }, 2000);
+      const res = await fetch('http://localhost:3000/api/online-meeting/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingUrl: url }),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || 'Failed to join meeting');
+      
+      // MeetingBaaS returns bot details. We assume success and start polling.
+      // (Mujtaba hasn't built the status/disconnect endpoints yet, so we still stub the progression)
+      setSession(prev => prev ? { ...prev, sessionId: data.bot_id || tempId, status: 'in_call' } : prev);
+      
+      // startPolling(data.bot_id); // Uncomment when /api/bot/status is built
     } catch (e: any) {
       setSession(prev => prev ? { ...prev, status: 'idle', error: e.message } : prev);
     }
