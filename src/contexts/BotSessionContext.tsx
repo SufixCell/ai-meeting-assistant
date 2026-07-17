@@ -202,18 +202,18 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
   const disconnectBot = useCallback(async () => {
     if (!session) return;
     setSession(prev => prev ? { ...prev, status: 'disconnecting' } : prev);
-    stopPolling();
 
     try {
+      // Physically remove the bot from the call
       await fetch(`http://localhost:5000/api/bot/disconnect/${session.sessionId}`, { method: 'POST' });
-      // The disconnect endpoint will remove the bot, but we won't get the transcript instantly
-      // from the DELETE response. MeetingBaaS usually requires webhooks for transcripts.
-      // For now, finalize with a placeholder until we set up webhooks.
-      await finalizeSession(session.sessionId, '(Bot disconnected. Transcript will be fetched soon)');
+      
+      // Do NOT stop polling and do NOT finalize here. 
+      // The polling loop will detect status='completed' in a few seconds, 
+      // grab the transcript from MeetingBaaS, and trigger the finalize flow naturally.
     } catch (e: any) {
       setSession(prev => prev ? { ...prev, error: e.message } : prev);
     }
-  }, [session, stopPolling, finalizeSession]);
+  }, [session]);
 
   const clearError = useCallback(() => {
     setSession(prev => prev ? { ...prev, error: undefined } : prev);
