@@ -17,3 +17,4 @@ start cmd /k "cd backend && node server.js"
 
 echo Starting AI Meeting Assistant Frontend...
 call npm run web
+pause
