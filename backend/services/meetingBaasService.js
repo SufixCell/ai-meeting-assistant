@@ -51,9 +51,9 @@ async function getBotStatus(botId) {
 
 async function leaveMeeting(botId) {
     try {
-        // According to MeetingBaaS API, DELETE removes the bot
-        const response = await axios.delete(
-            `${API_URL}/${botId}`,
+        const response = await axios.post(
+            `${API_URL}/${botId}/leave`,
+            {},
             {
                 headers: {
                     "x-meeting-baas-api-key": process.env.MEETING_BAAS_API_KEY

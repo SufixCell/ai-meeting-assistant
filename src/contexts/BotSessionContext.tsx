@@ -136,6 +136,28 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                 let transcriptText = '(Transcript data will be processed here)';
                 
                 try {
+                  // BEST RELIABILITY: Use the backend to download the MeetingBaaS audio
+                  // and transcribe it using our own reliable Whisper implementation!
+                  if (data.audio) {
+                    const res = await fetch('http://localhost:5000/api/meeting/process-bot-audio', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        audioUrl: data.audio,
+                        title: prev.label || 'Bot Meeting',
+                      })
+                    });
+                    const resultData = await res.json();
+                    
+                    if (res.ok && resultData.transcript) {
+                       stopPolling();
+                       setSession(null);
+                       router.push({ pathname: '/summary', params: { transcript: resultData.transcript } });
+                       return;
+                    }
+                  }
+                  
+                  // Fallback: If no audio, try to parse JSON
                   if (data.diarization) {
                     const tRes = await fetch(data.diarization);
                     const textData = await tRes.text();
@@ -157,7 +179,6 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                     
                     if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
                   } else if (data.transcription) {
-                    // In v2, data.transcription can be a URL to the JSON
                     let trData = data.transcription;
                     if (typeof data.transcription === 'string' && data.transcription.startsWith('http')) {
                       const tRes = await fetch(data.transcription);
@@ -178,8 +199,8 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                     transcriptText = '(No spoken words were transcribed during this meeting)';
                   }
                 } catch (e) {
-                  console.error('Failed to parse transcript:', e);
-                  transcriptText = '(Error parsing transcript data)';
+                  console.error('Failed to parse transcript or audio:', e);
+                  transcriptText = '(Error processing meeting data)';
                 }
                 
                 finalizeSession(sessionId, transcriptText);

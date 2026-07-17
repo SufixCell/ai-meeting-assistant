@@ -23,6 +23,9 @@ router.get('/bot/status/:botId', meetingController.getBotStatus);
 // POST /api/bot/disconnect/:botId
 router.post('/bot/disconnect/:botId', meetingController.disconnectBot);
 
+// POST /api/meeting/process-bot-audio
+router.post('/meeting/process-bot-audio', meetingController.processBotAudio);
+
 // POST /api/bot/webhook
 router.post('/bot/webhook', (req, res) => {
     try {

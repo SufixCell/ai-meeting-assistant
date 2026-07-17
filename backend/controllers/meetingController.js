@@ -1,4 +1,7 @@
 const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const axios = require('axios');
 const transcriptionService = require('../services/transcriptionService');
 const aiService = require('../services/aiService');
 const meetingService = require('../services/meetingService');
@@ -65,6 +68,70 @@ async function processMeeting(req, res) {
       } catch (_) {}
     }
     return res.status(500).json({ error: 'Failed to process meeting', details: error.message });
+  }
+}
+
+async function processBotAudio(req, res) {
+  let audioFilePath = null;
+  try {
+    const { audioUrl, title = 'Bot Meeting', userId = 'anonymous' } = req.body;
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'No audio URL provided' });
+    }
+
+    console.log(`Downloading audio from: ${audioUrl}`);
+    const response = await axios({
+      method: 'GET',
+      url: audioUrl,
+      responseType: 'stream'
+    });
+
+    audioFilePath = path.join(os.tmpdir(), `bot_audio_${Date.now()}.flac`);
+    const writer = fs.createWriteStream(audioFilePath);
+    
+    response.data.pipe(writer);
+    
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    console.log('Audio downloaded. Transcribing with Whisper...');
+    const transcriptText = await transcriptionService.transcribeAudio(audioFilePath);
+    
+    // Clean up
+    try {
+      fs.unlinkSync(audioFilePath);
+      audioFilePath = null;
+    } catch (e) {}
+
+    console.log('Summarizing...');
+    const llmOutput = await aiService.summarizeTranscript(transcriptText);
+
+    const resultData = {
+      user_id: userId,
+      title: title,
+      transcript: transcriptText,
+      summary: llmOutput.summary,
+      action_items: llmOutput.actionItems,
+    };
+
+    if (supabase) {
+      try {
+        const savedData = await meetingService.saveMeeting(resultData);
+        console.log('Saved to database successfully.');
+        return res.status(200).json(savedData);
+      } catch (dbErr) {
+        return res.status(200).json({ ...resultData, db_error: dbErr.message });
+      }
+    }
+    return res.status(200).json(resultData);
+  } catch (error) {
+    console.error('Error processing bot audio:', error);
+    if (audioFilePath && fs.existsSync(audioFilePath)) {
+      try { fs.unlinkSync(audioFilePath); } catch (e) {}
+    }
+    return res.status(500).json({ error: 'Failed to process bot audio', details: error.message });
   }
 }
 
@@ -148,5 +215,6 @@ module.exports = {
   deleteMeeting,
   joinOnlineMeeting,
   getBotStatus,
-  disconnectBot
+  disconnectBot,
+  processBotAudio
 };
