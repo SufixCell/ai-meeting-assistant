@@ -11,7 +11,7 @@ async function joinMeeting(meetingUrl) {
                 bot_name: "AI Meeting Assistant",
                 recording_mode: "speaker_view",
                 speech_to_text: {
-                    provider: "Default"
+                    provider: "Gladia"
                 },
                 reserved: false
             },
