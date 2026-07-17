@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const API_URL = "https://api.meetingbaas.com/bots";
+const API_URL = "https://api.meetingbaas.com/v2/bots";
 
 async function joinMeeting(meetingUrl) {
     try {

@@ -137,9 +137,10 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
       
       // MeetingBaaS returns bot details. We assume success and start polling.
       // (Mujtaba hasn't built the status/disconnect endpoints yet, so we still stub the progression)
-      setSession(prev => prev ? { ...prev, sessionId: data.bot_id || tempId, status: 'in_call' } : prev);
+      const botId = data.data?.bot_id || data.bot_id || tempId;
+      setSession(prev => prev ? { ...prev, sessionId: botId, status: 'in_call' } : prev);
       
-      // startPolling(data.bot_id); // Uncomment when /api/bot/status is built
+      // startPolling(botId); // Uncomment when /api/bot/status is built
     } catch (e: any) {
       setSession(prev => prev ? { ...prev, status: 'idle', error: e.message } : prev);
     }
