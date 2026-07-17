@@ -2,5 +2,5 @@
 echo Starting AI Meeting Assistant Backend...
 start cmd /k "cd backend && node server.js"
 echo Starting AI Meeting Assistant Frontend...
-call npm run start
+call npm run web
 
