@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../theme';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -17,6 +18,7 @@ const VISIBLE_ROUTES = ['index', 'history', 'settings'];
 export function FloatingNav({ state, descriptors, navigation }: any) {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   // Filter to only visible routes
   const visibleRoutes = state.routes.filter((r: any) => VISIBLE_ROUTES.includes(r.name));
@@ -27,6 +29,7 @@ export function FloatingNav({ state, descriptors, navigation }: any) {
   const TAB_WIDTH = 84; // fixed width per tab
   const NAV_WIDTH = TAB_WIDTH * visibleRoutes.length;
   const isDark = theme.name !== 'arctic';
+  const bottomPosition = Math.max(insets.bottom + 12, 20);
 
   // Indicator: no extra offset — just index * TAB_WIDTH
   // The tab items also start at 0, so they perfectly align
@@ -43,7 +46,7 @@ export function FloatingNav({ state, descriptors, navigation }: any) {
   }));
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={[styles.container, { bottom: bottomPosition }]} pointerEvents="box-none">
       <View
         style={[
           styles.navContainer,

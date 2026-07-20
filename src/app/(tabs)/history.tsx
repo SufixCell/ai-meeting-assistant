@@ -129,7 +129,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 100,
+    paddingBottom: 130,
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
   },
   card: {
     flexDirection: 'row',

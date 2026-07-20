@@ -103,7 +103,7 @@ export default function SettingsScreen() {
       </View>
       
       {/* Spacer for bottom tabs */}
-      <View style={{ height: 100 }} />
+      <View style={{ height: 130 }} />
     </ScrollView>
   );
 }
@@ -113,6 +113,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 24,
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     marginBottom: 32,

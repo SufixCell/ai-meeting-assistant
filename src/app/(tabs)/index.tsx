@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Platform, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../theme';
 import { Mic, Square, Pause, Play, Sparkles, FileText, ChevronRight, Video } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -232,14 +232,25 @@ export default function RecordScreen() {
     shouldBeRecordingRef.current = true;
     
     if (Platform.OS === 'web' && navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
+      const voiceOptimizedConstraints = {
+        audio: {
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+        }
+      };
+
+      navigator.mediaDevices.getUserMedia(voiceOptimizedConstraints)
+        .catch(() => navigator.mediaDevices.getUserMedia({ audio: true }))
         .then(stream => {
           setMediaStream(stream);
           startRecognition();
         })
         .catch(err => {
           console.error('Mic error:', err);
-          setDisplayTranscript('Microphone access denied. Cannot record.');
+          setDisplayTranscript('Microphone access denied. Please grant microphone permission to record.');
         });
     } else {
       startRecognition();
@@ -312,11 +323,15 @@ export default function RecordScreen() {
     }
   }, [state]);
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+  // Dynamic responsive sizing for orb and layout
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallDevice = windowWidth < 360 || windowHeight < 660;
+  const isDesktop = windowWidth >= 768;
+
+  const orbSize = isSmallDevice ? 170 : Math.min(windowWidth * 0.45, 210);
+  const mainOrbSize = Math.round(orbSize * 0.65);
+  const innerOrbSize = Math.round(mainOrbSize * 0.78);
+  const micIconSize = isSmallDevice ? 36 : 44;
 
   // ─── UI ───────────────────────────────────────────────────────────────────
   return (
@@ -328,195 +343,243 @@ export default function RecordScreen() {
         end={{ x: 0.5, y: 0.3 }}
       />
 
-      <View style={styles.header}>
-        <Text style={[styles.greeting, { color: theme.colors.textMuted }]}>
-          {effectiveState === 'idle' ? 'AI Meeting Assistant' : isBotUI ? 'Bot Recording' : 'Recording'}
-        </Text>
-        {effectiveState === 'idle' && (
-          <Text style={[styles.headline, { color: theme.colors.text }]}>
-            Ready to capture your next meeting?
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.centerStage}>
-        {/* ── IDLE ── */}
-        {effectiveState === 'idle' && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.idleState}>
-            <View style={styles.orbContainer}>
-              <Animated.View style={[styles.pulseRing, animatedGlow1, { backgroundColor: theme.colors.primary }]} />
-              <Animated.View style={[styles.pulseRing, animatedGlow2, { backgroundColor: theme.colors.primary }]} />
-
-              <AnimatedPressable
-                onPress={handleStartRecording}
-                style={[styles.mainOrb, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                scaleTo={0.88}
-              >
-                <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.innerOrbGradient}>
-                  <Mic size={48} color="#FFFFFF" />
-                </LinearGradient>
-              </AnimatedPressable>
-            </View>
-            <Text style={[styles.tapToRecord, { color: theme.colors.text }]}>Tap to Record</Text>
-            <Text style={[styles.description, { color: theme.colors.textMuted }]}>
-              Record your meeting. AI will generate a transcript, summary, and action items automatically.
+      <ScrollView
+        style={styles.scrollWrapper}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Platform.OS === 'web' ? 45 : 54,
+            paddingBottom: 95, // Position button slightly lower, perfectly balanced above navbar
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentContainer}>
+          <View style={styles.header}>
+            <Text style={[styles.greeting, { color: theme.colors.textMuted }]}>
+              {effectiveState === 'idle' ? 'AI Meeting Assistant' : isBotUI ? 'Bot Recording' : 'Recording'}
             </Text>
-
-            {/* Join a Meeting button */}
-            <AnimatedPressable
-              onPress={() => setJoinModalVisible(true)}
-              scaleTo={0.95}
-              style={[styles.joinCallButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            >
-              <View style={[styles.joinCallIcon, { backgroundColor: theme.colors.primary + '22' }]}>
-                <Video size={18} color={theme.colors.primary} />
-              </View>
-              <Text style={[styles.joinCallText, { color: theme.colors.text }]}>Join a Meeting</Text>
-              <ChevronRight size={16} color={theme.colors.textMuted} />
-            </AnimatedPressable>
-          </Animated.View>
-        )}
-
-        {/* ── RECORDING / PAUSED ── */}
-        {(effectiveState === 'recording' || effectiveState === 'paused') && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
-            <AudioVisualizer isRecording={effectiveState === 'recording'} mediaStream={mediaStream} />
-
-            <View style={styles.statusIndicator}>
-              <View style={[styles.liveDot, { backgroundColor: effectiveState === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
-              <Text style={[styles.timer, { color: theme.colors.text }]}>
-                {isBotUI ? 'BOT IN CALL' : formatTime(timer)}
+            {effectiveState === 'idle' && (
+              <Text style={[styles.headline, { color: theme.colors.text, fontSize: isSmallDevice ? 24 : 32 }]}>
+                Ready to capture your next meeting?
               </Text>
-              {effectiveState === 'recording' && (
-                <Text style={[styles.liveLabel, { color: theme.colors.danger }]}>LIVE</Text>
-              )}
-            </View>
+            )}
+          </View>
 
-            <View style={styles.controlsRow}>
-              {!isBotUI && (
+          <View style={styles.centerStage}>
+            {/* ── IDLE ── */}
+            {effectiveState === 'idle' && (
+              <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.idleState}>
+                <View style={[styles.orbContainer, { width: orbSize, height: orbSize, marginBottom: isSmallDevice ? 20 : 32 }]}>
+                  <Animated.View style={[styles.pulseRing, animatedGlow1, { width: orbSize, height: orbSize, borderRadius: orbSize / 2, backgroundColor: theme.colors.primary }]} />
+                  <Animated.View style={[styles.pulseRing, animatedGlow2, { width: orbSize, height: orbSize, borderRadius: orbSize / 2, backgroundColor: theme.colors.primary }]} />
+
+                  <AnimatedPressable
+                    onPress={handleStartRecording}
+                    style={[
+                      styles.mainOrb,
+                      {
+                        width: mainOrbSize,
+                        height: mainOrbSize,
+                        borderRadius: mainOrbSize / 2,
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                    scaleTo={0.88}
+                  >
+                    <LinearGradient
+                      colors={[theme.colors.primary, theme.colors.purple]}
+                      style={[
+                        styles.innerOrbGradient,
+                        {
+                          width: innerOrbSize,
+                          height: innerOrbSize,
+                          borderRadius: innerOrbSize / 2,
+                        },
+                      ]}
+                    >
+                      <Mic size={micIconSize} color="#FFFFFF" />
+                    </LinearGradient>
+                  </AnimatedPressable>
+                </View>
+                <Text style={[styles.tapToRecord, { color: theme.colors.text }]}>Tap to Record</Text>
+                <Text style={[styles.description, { color: theme.colors.textMuted }]}>
+                  Record your meeting. AI will generate a transcript, summary, and action items automatically.
+                </Text>
+
+                {/* Join a Meeting button */}
                 <AnimatedPressable
-                  style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
-                  onPress={handlePause}
-                  scaleTo={0.85}
+                  onPress={() => setJoinModalVisible(true)}
+                  scaleTo={0.95}
+                  style={[
+                    styles.joinCallButton,
+                    {
+                      backgroundColor: theme.colors.primary,
+                      borderColor: theme.colors.primary,
+                      width: isDesktop ? 360 : '100%',
+                    },
+                  ]}
                 >
-                  {effectiveState === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
+                  <View style={[styles.joinCallIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Video size={18} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.joinCallText, { color: '#FFFFFF' }]}>Join Online Meeting</Text>
+                  <ChevronRight size={16} color="#FFFFFF" />
                 </AnimatedPressable>
-              )}
-              <AnimatedPressable
-                style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]}
-                onPress={isBotUI ? () => disconnectBot() : handleStop}
-                scaleTo={0.85}
-              >
-                <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
-              </AnimatedPressable>
-            </View>
+              </Animated.View>
+            )}
 
-            {/* Live Transcript */}
-            <ScrollView
-              style={[styles.liveTranscriptContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              contentContainerStyle={{ paddingBottom: 12 }}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>
-                {isBotUI ? 'LIVE TRANSCRIPT (BOT)' : Platform.OS === 'web' ? 'LIVE TRANSCRIPT' : 'TRANSCRIPT'}
-              </Text>
-              {isBotUI ? (
-                botTranscript ? (
-                  <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
-                    {botTranscript}
+            {/* ── RECORDING / PAUSED ── */}
+            {(effectiveState === 'recording' || effectiveState === 'paused') && (
+              <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recordingState}>
+                <AudioVisualizer isRecording={effectiveState === 'recording'} mediaStream={mediaStream} />
+
+                <View style={styles.statusIndicator}>
+                  <View style={[styles.liveDot, { backgroundColor: effectiveState === 'recording' ? theme.colors.danger : theme.colors.textMuted }]} />
+                  <Text style={[styles.timer, { color: theme.colors.text }]}>
+                    {isBotUI ? 'BOT IN CALL' : formatTime(timer)}
                   </Text>
-                ) : (
-                  <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
-                    {botSession?.status === 'joining' 
-                      ? 'Joining... this usually takes 20-30 seconds' 
-                      : botSession?.status === 'disconnecting' 
-                        ? 'Bot is leaving the meeting...' 
-                        : 'Recording in progress — transcript will be ready shortly after the call ends'}
-                  </Text>
-                )
-              ) : (displayTranscript || interimText) ? (
-                <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
-                  {displayTranscript}
-                  {interimText ? (
-                    <Text style={{ color: theme.colors.textMuted, fontStyle: 'italic' }}>{interimText}</Text>
-                  ) : null}
-                </Text>
-              ) : (
-                <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
-                  {effectiveState === 'recording'
-                    ? Platform.OS === 'web'
-                      ? 'Listening... Start speaking.'
-                      : 'Recording audio...'
-                    : 'Paused'}
-                </Text>
-              )}
-            </ScrollView>
-          </Animated.View>
-        )}
+                  {effectiveState === 'recording' && (
+                    <Text style={[styles.liveLabel, { color: theme.colors.danger }]}>LIVE</Text>
+                  )}
+                </View>
 
-        {/* ── PROCESSING ── */}
-        {effectiveState === 'processing' && (
-          <Animated.View entering={FadeIn.delay(300)} exiting={FadeOut} style={styles.processingState}>
-            <View style={[styles.aiPulseContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-              <Sparkles size={40} color={theme.colors.primary} />
-            </View>
-            <Text style={[styles.processingTitle, { color: theme.colors.text }]}>AI is working...</Text>
-            <Animated.Text entering={SlideInDown} key={processingStage} style={[styles.processingStageText, { color: theme.colors.primary }]}>
-              {processingStages[processingStage]}
-            </Animated.Text>
-            <View style={styles.skeletonContainer}>
-              <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '90%' }]} />
-              <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '70%' }]} />
-              <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '80%' }]} />
-            </View>
-          </Animated.View>
-        )}
-      </View>
+                <View style={styles.controlsRow}>
+                  {!isBotUI && (
+                    <AnimatedPressable
+                      style={[styles.controlButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
+                      onPress={handlePause}
+                      scaleTo={0.85}
+                    >
+                      {effectiveState === 'recording' ? <Pause size={24} color={theme.colors.text} /> : <Play size={24} color={theme.colors.text} />}
+                    </AnimatedPressable>
+                  )}
+                  <AnimatedPressable
+                    style={[styles.controlButton, styles.stopButton, { backgroundColor: theme.colors.danger }]}
+                    onPress={isBotUI ? () => disconnectBot() : handleStop}
+                    scaleTo={0.85}
+                  >
+                    <Square size={24} color="#FFFFFF" fill="#FFFFFF" />
+                  </AnimatedPressable>
+                </View>
 
-      {/* Recent Meetings */}
-      {effectiveState === 'idle' && recentMeetings.length > 0 && (
-        <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
-          <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Recordings</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={styles.recentListContent}
-            decelerationRate="fast"
-            snapToInterval={width * 0.75 + 16} // card width + margin
-          >
-            {recentMeetings.map(meeting => (
-              <AnimatedPressable
-                key={meeting.id}
-                style={styles.meetingCardShadow}
-                onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
-                scaleTo={0.95}
-              >
-                <BlurView 
-                  intensity={Platform.OS === 'android' ? 100 : 70} 
-                  tint={theme.name === 'arctic' ? 'light' : 'dark'} 
-                  style={styles.meetingCard}
+                {/* Live Transcript */}
+                <ScrollView
+                  style={[styles.liveTranscriptContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                  contentContainerStyle={{ paddingBottom: 12 }}
+                  showsVerticalScrollIndicator={false}
                 >
-                  <View style={styles.meetingCardHeader}>
-                    <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.primary + '20' }]}>
-                      <FileText size={22} color={theme.colors.primary} />
-                    </View>
-                    <ChevronRight size={20} color={theme.colors.textMuted} />
-                  </View>
-                  
-                  <View style={styles.meetingInfo}>
-                    <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={2}>
-                      {meeting.title || 'Untitled Recording'}
+                  <Text style={[styles.liveTranscriptTitle, { color: theme.colors.primary }]}>
+                    {isBotUI ? 'LIVE TRANSCRIPT (BOT)' : Platform.OS === 'web' ? 'LIVE TRANSCRIPT' : 'TRANSCRIPT'}
+                  </Text>
+                  {isBotUI ? (
+                    botTranscript ? (
+                      <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
+                        {botTranscript}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
+                        {botSession?.status === 'joining' 
+                          ? 'Launching bot and connecting to Google Meet...' 
+                          : botSession?.status === 'waiting_for_admission'
+                            ? 'Waiting for host approval... Please click Admit in Google Meet.'
+                            : botSession?.status === 'connected'
+                              ? 'Admitted! Initializing audio capture & speech transcription...'
+                              : botSession?.status === 'transcribing'
+                                ? 'Listening to meeting audio... Live transcription active.'
+                                : botSession?.status === 'generating_summary'
+                                  ? 'Generating AI meeting summary and action items...'
+                                  : botSession?.status === 'disconnecting' 
+                                    ? 'Bot is leaving the meeting...' 
+                                    : 'Recording in progress — transcript will be ready shortly after the call ends'}
+                      </Text>
+                    )
+                  ) : (displayTranscript || interimText) ? (
+                    <Text style={[styles.liveTranscriptText, { color: theme.colors.text }]}>
+                      {displayTranscript}
+                      {interimText ? (
+                        <Text style={{ color: theme.colors.textMuted, fontStyle: 'italic' }}>{interimText}</Text>
+                      ) : null}
                     </Text>
-                    <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
-                      {new Date(meeting.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at {new Date(meeting.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                  ) : (
+                    <Text style={[styles.liveTranscriptPlaceholder, { color: theme.colors.textMuted }]}>
+                      {effectiveState === 'recording'
+                        ? Platform.OS === 'web'
+                          ? 'Listening... Start speaking.'
+                          : 'Recording audio...'
+                        : 'Paused'}
                     </Text>
-                  </View>
-                </BlurView>
-              </AnimatedPressable>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      )}
+                  )}
+                </ScrollView>
+              </Animated.View>
+            )}
+
+            {/* ── PROCESSING ── */}
+            {effectiveState === 'processing' && (
+              <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.processingState}>
+                <View style={[styles.aiPulseContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+                  <Sparkles size={40} color={theme.colors.primary} />
+                </View>
+                <Text style={[styles.processingTitle, { color: theme.colors.text }]}>AI is working...</Text>
+                <Animated.Text entering={SlideInDown} key={processingStage} style={[styles.processingStageText, { color: theme.colors.primary }]}>
+                  {processingStages[processingStage]}
+                </Animated.Text>
+                <View style={styles.skeletonContainer}>
+                  <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '90%' }]} />
+                  <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '70%' }]} />
+                  <View style={[styles.skeletonLine, { backgroundColor: theme.colors.surfaceHighlight, width: '80%' }]} />
+                </View>
+              </Animated.View>
+            )}
+          </View>
+
+          {/* Recent Meetings */}
+          {effectiveState === 'idle' && recentMeetings.length > 0 && (
+            <Animated.View entering={FadeIn.delay(200)} style={styles.recentSection}>
+              <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Recordings</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.recentListContent}
+                decelerationRate="fast"
+                snapToInterval={Math.min(windowWidth * 0.75, 320) + 16} // card width + margin
+              >
+                {recentMeetings.map(meeting => (
+                  <AnimatedPressable
+                    key={meeting.id}
+                    style={[styles.meetingCardShadow, { width: Math.min(windowWidth * 0.75, 320) }]}
+                    onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
+                    scaleTo={0.95}
+                  >
+                    <BlurView 
+                      intensity={Platform.OS === 'android' ? 100 : 70} 
+                      tint={theme.name === 'arctic' ? 'light' : 'dark'} 
+                      style={styles.meetingCard}
+                    >
+                      <View style={styles.meetingCardHeader}>
+                        <View style={[styles.meetingIconWrapper, { backgroundColor: theme.colors.primary + '20' }]}>
+                          <FileText size={22} color={theme.colors.primary} />
+                        </View>
+                        <ChevronRight size={20} color={theme.colors.textMuted} />
+                      </View>
+                      
+                      <View style={styles.meetingInfo}>
+                        <Text style={[styles.meetingTitle, { color: theme.colors.text }]} numberOfLines={2}>
+                          {meeting.title || 'Untitled Recording'}
+                        </Text>
+                        <Text style={[styles.meetingDate, { color: theme.colors.textMuted }]}>
+                          {new Date(meeting.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at {new Date(meeting.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </BlurView>
+                  </AnimatedPressable>
+                ))}
+              </ScrollView>
+            </Animated.View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Join Call Modal */}
       <JoinCallModal visible={joinModalVisible} onClose={() => setJoinModalVisible(false)} />
@@ -527,13 +590,24 @@ export default function RecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 80,
-    paddingHorizontal: 24,
-    overflow: 'hidden',
+  },
+  scrollWrapper: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  contentContainer: {
+    width: '100%',
+    maxWidth: 600,
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 20,
   },
   greeting: {
@@ -541,41 +615,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 2.5,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headline: {
-    fontSize: 32,
     fontWeight: '800',
     textAlign: 'center',
-    lineHeight: 40,
-    letterSpacing: -1.2,
+    lineHeight: 38,
+    letterSpacing: -1,
   },
   centerStage: {
-    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 10,
   },
   idleState: { alignItems: 'center', width: '100%' },
   recordingState: { alignItems: 'center', width: '100%' },
   processingState: { alignItems: 'center', width: '100%' },
 
   orbContainer: {
-    width: 220,
-    height: 220,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
   },
   pulseRing: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
   },
   mainOrb: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -586,9 +651,6 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
   },
   innerOrbGradient: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -607,10 +669,11 @@ const styles = StyleSheet.create({
   joinCallButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
-    marginTop: 20,
+    marginTop: 28,
+    minHeight: 52,
     paddingHorizontal: 20,
-    paddingVertical: 14,
     borderRadius: 16,
     borderWidth: 1,
     alignSelf: 'center',
@@ -625,7 +688,6 @@ const styles = StyleSheet.create({
   joinCallText: {
     fontSize: 15,
     fontWeight: '600',
-    flex: 1,
   },
 
   statusIndicator: {
@@ -731,8 +793,8 @@ const styles = StyleSheet.create({
   },
 
   recentSection: {
-    marginTop: 'auto',
-    paddingBottom: 110,
+    marginTop: 32,
+    width: '100%',
   },
   recentTitle: {
     fontSize: 18,
