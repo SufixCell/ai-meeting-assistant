@@ -5,7 +5,7 @@ import { ArrowLeft, Share, Calendar, CheckSquare, AlignLeft, Sparkles, CheckCirc
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { generateMeetingSummary, type MeetingSummary } from '../../lib/groq';
+import { generateMeetingSummary, type MeetingSummary } from '../../lib/openrouter';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -25,6 +25,9 @@ export default function SummaryScreen() {
 
   const meetingId = params.meetingId as string;
   const transcriptParam = params.transcript as string;
+  // These are passed by BotSessionContext when the backend already did summarization
+  const precomputedSummary = params.precomputedSummary as string | undefined;
+  const precomputedActionItemsRaw = params.precomputedActionItems as string | undefined;
 
   useEffect(() => {
     const init = async () => {
@@ -36,7 +39,7 @@ export default function SummaryScreen() {
         lastProcessedTranscriptRef.current = transcriptParam;
         lastProcessedMeetingIdRef.current = null; // reset
       }
-      
+
       if (meetingId && meetingId === lastProcessedMeetingIdRef.current) {
         return; // Already loaded this meeting ID
       }
@@ -47,12 +50,11 @@ export default function SummaryScreen() {
 
       setLoading(true);
       setError(null);
-      // Clear previous state so old data doesn't flash
       setSummary(null);
       setRawTranscript('');
 
       try {
-        // If viewing an existing meeting from history
+        // Case 1: viewing an existing meeting from history
         if (meetingId) {
           const { data, error: dbErr } = await supabase
             .from('meetings')
@@ -74,7 +76,6 @@ export default function SummaryScreen() {
           return;
         }
 
-        // Otherwise, generate a new summary from the passed transcript
         const transcript = transcriptParam || '';
         setRawTranscript(transcript);
 
@@ -89,19 +90,44 @@ export default function SummaryScreen() {
           return;
         }
 
+        // Case 2: backend already summarized (bot meeting) — use pre-computed result directly
+        if (precomputedSummary) {
+          let actionItems: string[] = [];
+          try { actionItems = JSON.parse(precomputedActionItemsRaw || '[]'); } catch (_) {}
+          const result: MeetingSummary = {
+            title: 'Bot Meeting',
+            summary: precomputedSummary,
+            actionItems,
+            keyDecisions: [],
+          };
+          setSummary(result);
+          // Save to Supabase
+          await supabase.from('meetings').insert({
+            user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+            title: result.title,
+            transcript,
+            summary: result.summary,
+            action_items: result.actionItems,
+            key_decisions: result.keyDecisions,
+            source: 'bot',
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Case 3: local mic recording — call OpenRouter to summarize
         const result = await generateMeetingSummary(transcript);
         setSummary(result);
 
-        // Save to Supabase history
         await supabase.from('meetings').insert({
           user_id: user?.id || '00000000-0000-0000-0000-000000000000',
           title: result.title,
-          transcript: transcript,
+          transcript,
           summary: result.summary,
           action_items: result.actionItems,
           key_decisions: result.keyDecisions,
         });
-        
+
       } catch (err: any) {
         console.error('Summary error:', err);
         setError(err.message || 'Failed to load summary');
@@ -111,7 +137,7 @@ export default function SummaryScreen() {
     };
 
     init();
-  }, [meetingId, transcriptParam]);
+  }, [meetingId, transcriptParam, precomputedSummary]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -141,7 +167,7 @@ export default function SummaryScreen() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>AI is analysing…</Text>
-          <Text style={[styles.loadingSub, { color: theme.colors.textMuted }]}>Powered by Groq llama-3.3-70b</Text>
+          <Text style={[styles.loadingSub, { color: theme.colors.textMuted }]}>Powered by OpenRouter gpt-4o-mini</Text>
         </View>
       )}
 

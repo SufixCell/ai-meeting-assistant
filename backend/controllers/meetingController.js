@@ -98,6 +98,15 @@ async function processBotAudio(req, res) {
           timeout: 60000 // 60 seconds generous timeout
         });
         
+        // --- INSTRUMENTATION: Log download HTTP info ---
+        const logPath = path.join(__dirname, '..', 'bot_debug.log');
+        try {
+            const headers = response.headers;
+            const httpInfo = `\n[DOWNLOAD HTTP INFO at ${new Date().toISOString()}]\nURL: ${audioUrl}\nStatus: ${response.status}\nContent-Type: ${headers['content-type']}\nContent-Length: ${headers['content-length']}\n`;
+            fs.appendFileSync(logPath, httpInfo);
+        } catch(e) {}
+        // -----------------------------------------------
+
         const writer = fs.createWriteStream(flacFilePath);
         response.data.pipe(writer);
         await new Promise((resolve, reject) => {
@@ -116,6 +125,20 @@ async function processBotAudio(req, res) {
     if (!downloaded) {
       throw new Error(`Audio download timeout or failure after 3 attempts: ${downloadError?.message}`);
     }
+
+    // --- INSTRUMENTATION: FFprobe analysis before conversion ---
+    try {
+        const logPath = path.join(__dirname, '..', 'bot_debug.log');
+        const stats = fs.statSync(flacFilePath);
+        let duration = 'unknown';
+        try {
+            const { stdout } = await exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${flacFilePath}"`);
+            duration = stdout.trim();
+        } catch(e) { duration = 'error parsing duration'; }
+        
+        fs.appendFileSync(logPath, `\n[FFPROBE RAW DOWNLOAD at ${new Date().toISOString()}]\nFile Size (bytes): ${stats.size}\nDuration (seconds): ${duration}\n`);
+    } catch(e) {}
+    // -----------------------------------------------------------
 
     // Convert to MP3
     console.log('[2/5] Converting FLAC to MP3 using ffmpeg...');

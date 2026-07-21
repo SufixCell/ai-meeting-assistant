@@ -1,4 +1,6 @@
 const axios = require("axios");
+const fs = require('fs');
+const path = require('path');
 
 const API_URL = "https://api.meetingbaas.com/v2/bots";
 
@@ -55,6 +57,14 @@ async function getBotStatus(botId) {
             }
         );
         console.log(`[MeetingBaaS Polling] Status for ${botId}: ${response.data?.data?.status}`);
+        
+        // --- INSTRUMENTATION: Log full getBotStatus response ---
+        try {
+            const logPath = path.join(__dirname, '..', 'bot_debug.log');
+            fs.appendFileSync(logPath, `\n[GET_BOT_STATUS ${botId} at ${new Date().toISOString()}]\n${JSON.stringify(response.data, null, 2)}\n`);
+        } catch(e) { console.error('Failed to write to bot_debug.log', e); }
+        // -------------------------------------------------------
+
         if (response.data?.data?.status === 'completed' || response.data?.data?.status === 'failed') {
             console.log("===============================================");
             console.log("MEETINGBAAS BOT COMPLETED/FAILED RESPONSE:");

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { generateMeetingSummary } from '../lib/groq';
+import { generateMeetingSummary } from '../lib/openrouter';
 import { useRouter } from 'expo-router';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -12,7 +12,8 @@ export type BotSessionStatus =
   | 'joining'
   | 'in_call'
   | 'disconnecting'
-  | 'processing';
+  | 'processing'
+  | 'disconnect_requested';
 
 export interface BotSession {
   sessionId: string;
@@ -127,85 +128,71 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
               return { ...prev, status: 'idle', error: data.error_message || errorCode || 'Bot failed to join or was kicked' };
             }
             
-            if (status === 'completed' || status === 'call_ended') {
+            if (status === 'call_ended') {
+              newStatus = 'processing';
+            }
+            
+            if (status === 'completed') {
               stopPolling();
-              // When completed, fetch the transcript and finalize
-              // In MeetingBaaS V2, transcription text is provided via an S3 URL in data.diarization
-              
+
+              // Snapshot the data we need BEFORE the async call.
+              // This avoids stale-closure bugs inside the IIFE.
+              const audioUrl = data.audio as string | null;
+              const meetingLabel = prev.label || 'Bot Meeting';
+              const snapSessionId = sessionId;
+
               (async () => {
-                let transcriptText = '(Transcript data will be processed here)';
-                
+                setSession(p => p ? { ...p, status: 'processing' } : p);
                 try {
-                  // BEST RELIABILITY: Use the backend to download the MeetingBaaS audio
-                  // and transcribe it using our own reliable Whisper implementation!
-                  if (data.audio) {
-                    const res = await fetch('http://localhost:5000/api/meeting/process-bot-audio', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        audioUrl: data.audio,
-                        title: prev.label || 'Bot Meeting',
-                      })
-                    });
+                  if (audioUrl) {
+                    // Give the backend up to 3 minutes (download + ffmpeg + Whisper)
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 180000);
+
+                    let res: Response;
+                    try {
+                      res = await fetch('http://localhost:5000/api/meeting/process-bot-audio', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audioUrl, title: meetingLabel }),
+                        signal: controller.signal,
+                      });
+                    } finally {
+                      clearTimeout(timeoutId);
+                    }
+
                     const resultData = await res.json();
-                    
+                    console.log('[Bot] process-bot-audio response:', res.status, JSON.stringify(resultData).slice(0, 300));
+
                     if (res.ok && resultData.transcript) {
-                       stopPolling();
-                       setSession(null);
-                       router.push({ pathname: '/summary', params: { transcript: resultData.transcript } });
-                       return;
+                      setSession(null);
+                      // Pass the pre-computed summary from the backend so summary.tsx
+                      // does NOT need to call OpenRouter again.
+                      router.push({
+                        pathname: '/summary',
+                        params: {
+                          transcript: resultData.transcript,
+                          precomputedSummary: resultData.summary || '',
+                          precomputedActionItems: JSON.stringify(resultData.action_items || []),
+                        },
+                      });
+                      return;
                     }
+
+                    // Backend returned an error — surface it
+                    console.error('[Bot] process-bot-audio error body:', resultData);
+                    setSession(p => p ? { ...p, status: 'idle', error: resultData.details || resultData.error || 'Backend processing failed' } : p);
+                    return;
                   }
-                  
-                  // Fallback: If no audio, try to parse JSON
-                  if (data.diarization) {
-                    const tRes = await fetch(data.diarization);
-                    const textData = await tRes.text();
-                    
-                    const lines = textData.split('\\n').filter(l => l.trim());
-                    const utterances = lines.map(l => JSON.parse(l));
-                    
-                    transcriptText = utterances.map((u: any) => {
-                      const speaker = u.speaker || 'Unknown';
-                      let text = '';
-                      if (u.words) {
-                        text = u.words.map((w: any) => w.text).join(' ');
-                      } else if (u.text) {
-                        text = u.text;
-                      }
-                      if (!text.trim()) return '';
-                      return `${speaker}: ${text}`;
-                    }).filter(Boolean).join('\\n');
-                    
-                    if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
-                  } else if (data.transcription) {
-                    let trData = data.transcription;
-                    if (typeof data.transcription === 'string' && data.transcription.startsWith('http')) {
-                      const tRes = await fetch(data.transcription);
-                      trData = await tRes.json();
-                    }
-                    
-                    if (Array.isArray(trData)) {
-                       transcriptText = trData.map((t: any) => {
-                         const speaker = t.speaker || 'Unknown';
-                         const text = t.words ? t.words.map((w: any) => w.text).join(' ') : t.text || '';
-                         return text ? `${speaker}: ${text}` : '';
-                       }).filter(Boolean).join('\\n');
-                    } else if (typeof trData === 'string') {
-                       transcriptText = trData;
-                    }
-                    if (!transcriptText) transcriptText = '(No spoken words were transcribed during this meeting)';
-                  } else {
-                    transcriptText = '(No spoken words were transcribed during this meeting)';
-                  }
-                } catch (e) {
-                  console.error('Failed to parse transcript or audio:', e);
-                  transcriptText = '(Error processing meeting data)';
+
+                  // No audio URL — nothing useful to transcribe
+                  setSession(p => p ? { ...p, status: 'idle', error: 'Meeting ended but no audio was recorded by MeetingBaaS.' } : p);
+                } catch (e: any) {
+                  console.error('[Bot] Completion handler error:', e);
+                  setSession(p => p ? { ...p, status: 'idle', error: e.name === 'AbortError' ? 'Transcription timed out (>3 min). Please try again.' : e.message } : p);
                 }
-                
-                finalizeSession(sessionId, transcriptText);
               })();
-              
+
               return { ...prev, status: 'processing' };
             }
 

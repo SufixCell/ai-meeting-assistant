@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
 const meetingController = require('../controllers/meetingController');
 
@@ -30,6 +32,12 @@ router.post('/meeting/process-bot-audio', meetingController.processBotAudio);
 router.post('/bot/webhook', (req, res) => {
     try {
         const event = req.body;
+        
+        // --- INSTRUMENTATION: Log full webhook payload ---
+        const logPath = path.join(__dirname, '..', 'bot_debug.log');
+        fs.appendFileSync(logPath, `\n[WEBHOOK RECEIVED at ${new Date().toISOString()}]\n${JSON.stringify(event, null, 2)}\n`);
+        // -------------------------------------------------
+
         if (global.io) {
             global.io.emit('webhook_event', event);
         }

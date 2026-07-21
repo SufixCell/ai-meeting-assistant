@@ -2,12 +2,12 @@ const openai = require('../config/openai');
 
 async function summarizeTranscript(transcriptText) {
   if (!openai) {
-    throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY in your backend .env file.');
+    throw new Error('OpenRouter API key is not configured. Please set OPENROUTER_API_KEY in your backend .env file.');
   }
 
   console.log('Sending to GPT-4o-mini for summarization...');
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'openai/gpt-4o-mini',
     messages: [
       {
         role: 'system',

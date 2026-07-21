@@ -1,20 +1,24 @@
 const fs = require('fs');
-const openai = require('../config/openai');
+const Groq = require('groq-sdk');
 
 async function transcribeAudio(audioFilePath) {
-  if (!openai) {
-    throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY in your backend .env file.');
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not configured in your backend .env file.');
   }
 
-  console.log('Sending to Whisper API for transcription...');
-  const transcription = await openai.audio.transcriptions.create({
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+  console.log('Sending to Groq Whisper (whisper-large-v3) for transcription...');
+  const transcription = await groq.audio.transcriptions.create({
     file: fs.createReadStream(audioFilePath),
-    model: 'whisper-1',
+    model: 'whisper-large-v3',
+    response_format: 'text',
   });
-  
-  return transcription.text;
+
+  // Groq returns the text directly when response_format is 'text'
+  return typeof transcription === 'string' ? transcription : transcription.text;
 }
 
 module.exports = {
-  transcribeAudio
+  transcribeAudio,
 };
