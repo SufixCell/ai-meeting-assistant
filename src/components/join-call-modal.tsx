@@ -15,7 +15,33 @@ import { useTheme } from '../theme';
 import { AnimatedPressable } from './animated-pressable';
 import { useBotSession, detectPlatform, BotPlatform } from '../contexts/BotSessionContext';
 import { Video, Hash, X, Wifi } from 'lucide-react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, Easing, withTiming } from 'react-native-reanimated';
+
+const customEntering = () => {
+  'worklet';
+  const animations = {
+    opacity: withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) }),
+    transform: [{ translateX: withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }) }],
+  };
+  const initialValues = {
+    opacity: 0,
+    transform: [{ translateX: 16 }],
+  };
+  return { initialValues, animations };
+};
+
+const customExiting = () => {
+  'worklet';
+  const animations = {
+    opacity: withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }),
+    transform: [{ translateX: withTiming(16, { duration: 300, easing: Easing.out(Easing.quad) }) }],
+  };
+  const initialValues = {
+    opacity: 1,
+    transform: [{ translateX: 0 }],
+  };
+  return { initialValues, animations };
+};
 
 // ─── Platform badge icons (text-based since we can't bundle third-party logos) ──
 
@@ -154,12 +180,12 @@ export function JoinCallModal({ visible, onClose }: JoinCallModalProps) {
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.overlay}>
+      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
         <Animated.View
-          entering={SlideInDown.springify().damping(22).stiffness(200)}
-          exiting={SlideOutDown.duration(200)}
+          entering={customEntering}
+          exiting={customExiting}
           style={styles.sheetWrapper}
         >
           <BlurView

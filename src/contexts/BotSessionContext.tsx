@@ -86,7 +86,7 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
           source: 'bot', // differentiates from mic recordings
         });
       }
-      router.push({ pathname: '/summary', params: { transcript } });
+      router.push({ pathname: '/(tabs)/summary', params: { transcript, ts: Date.now().toString() } });
     } catch (e) {
       console.error('Bot finalize error:', e);
     } finally {
@@ -169,11 +169,12 @@ export function BotSessionProvider({ children }: { children: ReactNode }) {
                       // Pass the pre-computed summary from the backend so summary.tsx
                       // does NOT need to call OpenRouter again.
                       router.push({
-                        pathname: '/summary',
+                        pathname: '/(tabs)/summary',
                         params: {
                           transcript: resultData.transcript,
                           precomputedSummary: resultData.summary || '',
                           precomputedActionItems: JSON.stringify(resultData.action_items || []),
+                          ts: Date.now().toString(),
                         },
                       });
                       return;

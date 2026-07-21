@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import { useTheme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogIn, User, Lock } from 'lucide-react-native';
+import { LogIn, User, Lock, Sparkles } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
@@ -25,16 +26,12 @@ export default function LoginScreen() {
     let loginEmail = identifier.trim();
     let loginPhone = undefined;
 
-    // Determine if identifier is an email, phone, or username
     if (identifier.includes('@')) {
-      // It's an email
       loginEmail = identifier;
     } else if (identifier.startsWith('+') || /^\d+$/.test(identifier)) {
-      // It's a phone number
       loginPhone = identifier.startsWith('+') ? identifier : '+' + identifier;
       loginEmail = '';
     } else {
-      // It's a username. We need to look up the email.
       const { data: emailData, error: lookupError } = await supabase.rpc('get_email_by_username', { p_username: identifier });
       if (lookupError || !emailData) {
         setLoading(false);
@@ -69,13 +66,19 @@ export default function LoginScreen() {
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 0.4 }}
       />
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]} >
-             <LogIn size={32} color={theme.colors.primary} />
+      <Animated.ScrollView contentContainerStyle={styles.scrollContent} entering={FadeIn.duration(600)} showsVerticalScrollIndicator={false}>
+        
+        {/* Logo Area */}
+        <View style={styles.logoArea}>
+          <View style={[styles.logoIconWrap, { backgroundColor: theme.colors.surfaceHighlight }]}>
+             <Sparkles size={36} color={theme.colors.primary} />
           </View>
+          <Text style={[styles.brandText, { color: theme.colors.primary }]}>NOTIA</Text>
+        </View>
+
+        <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Sign in to your AI Meeting Assistant</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Sign in to continue</Text>
         </View>
 
         {error ? (
@@ -115,13 +118,14 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryButtonText}>Sign In</Text>}
+          <TouchableOpacity onPress={handleLogin} disabled={loading} style={styles.primaryBtnWrap}>
+            <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.primaryGradient} start={{x:0, y:0}} end={{x:1,y:1}}>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryButtonText}>Sign In</Text>}
+            </LinearGradient>
           </TouchableOpacity>
           
-          {/* Google Placeholder */}
-          <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
-            <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Continue with Google (Coming Soon)</Text>
+          <TouchableOpacity style={[styles.ghostButton, { borderColor: theme.colors.border }]}>
+            <Text style={[styles.ghostButtonText, { color: theme.colors.text }]}>Continue with Google (Coming Soon)</Text>
           </TouchableOpacity>
         </View>
 
@@ -131,109 +135,35 @@ export default function LoginScreen() {
             <Text style={[styles.linkText, { color: theme.colors.primary }]}>Sign Up</Text>
           </TouchableOpacity>
         </View>
-      </View>
+
+      </Animated.ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  iconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  errorContainer: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  form: {
-    gap: 16,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  primaryButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 40,
-  },
-  footerText: {
-    fontSize: 15,
-  },
-  linkText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, padding: 24, justifyContent: 'center' },
+  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoIconWrap: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  brandText: { fontSize: 32, fontWeight: '800', letterSpacing: 2 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
+  subtitle: { fontSize: 16 },
+  errorContainer: { padding: 12, borderRadius: 12, marginBottom: 20 },
+  errorText: { fontSize: 14, textAlign: 'center' },
+  form: { gap: 16 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, height: 54 },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 16 },
+  forgotPasswordContainer: { alignItems: 'flex-end', marginTop: -8, marginBottom: 8 },
+  forgotPasswordText: { fontSize: 14, fontWeight: '500' },
+  primaryBtnWrap: { borderRadius: 14, overflow: 'hidden' },
+  primaryGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  ghostButton: { height: 54, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  ghostButtonText: { fontSize: 15, fontWeight: '500' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 40 },
+  footerText: { fontSize: 15 },
+  linkText: { fontSize: 15, fontWeight: '600' },
 });

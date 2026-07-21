@@ -1,51 +1,139 @@
-import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../theme';
-import { Home, Settings, Clock } from 'lucide-react-native';
+import { Home, Settings, BookOpen } from 'lucide-react-native';
 import { FloatingNav } from '../../components/ui/floating-nav';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { BotSessionBanner } from '../../components/bot-session-banner';
+import { AnimatedPressable } from '../../components/animated-pressable';
+import React from 'react';
 
-export default function TabsLayout() {
+function DesktopSidebar() {
   const { theme } = useTheme();
+  const { openSidebar } = useSidebar();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const navItems = [
+    { name: 'Home', path: '/', icon: Home },
+    { name: 'Notebook', path: '/history', icon: BookOpen },
+  ];
+
   return (
-    <View style={{ flex: 1 }}>
-      <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
-      <Tabs
-        tabBar={(props) => <FloatingNav {...props} />}
-        screenOptions={{ headerShown: false }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Home',
-            tabBarIcon: ({ color }) => <Home size={24} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: 'History',
-            tabBarIcon: ({ color }) => <Clock size={24} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: 'Settings',
-            tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
-          }}
-        />
-        {/* Summary lives inside tabs so it inherits the floating nav bar */}
-        <Tabs.Screen
-          name="summary"
-          options={{
-            href: null,
-          }}
-        />
-      </Tabs>
-      {/* Bot banner floats over all tabs */}
-      <BotSessionBanner />
+    <View style={[styles.sidebar, { backgroundColor: theme.colors.background, borderRightColor: theme.colors.border }]}>
+      <View style={styles.sidebarHeader}>
+        <View style={[styles.logo, { backgroundColor: theme.colors.primary }]} />
+        <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
+      </View>
+      
+      <View style={styles.navContainer}>
+        {navItems.map(item => {
+          const isActive = pathname === item.path || (item.path === '/' && pathname === '/index');
+          const Icon = item.icon;
+          
+          return (
+            <AnimatedPressable 
+              key={item.path}
+              onPress={() => router.push(item.path as any)}
+              scaleTo={0.96}
+              style={[
+                styles.sidebarItem, 
+                isActive && { backgroundColor: theme.colors.surfaceHighlight }
+              ]}
+            >
+              <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textMuted} />
+              <Text style={[
+                styles.sidebarLabel, 
+                { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
+              ]}>
+                {item.name}
+              </Text>
+            </AnimatedPressable>
+          );
+        })}
+        
+        {/* Settings triggers Premium Sidebar */}
+        <AnimatedPressable 
+          onPress={openSidebar}
+          scaleTo={0.96}
+          style={styles.sidebarItem}
+        >
+          <Settings size={20} color={theme.colors.textMuted} />
+          <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
+            Settings
+          </Text>
+        </AnimatedPressable>
+      </View>
     </View>
   );
 }
+
+export default function TabsLayout() {
+  const { theme } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
+
+  return (
+    <View style={{ flex: 1, flexDirection: isDesktop ? 'row' : 'column', backgroundColor: theme.colors.background }}>
+      <StatusBar style={theme.name === 'arctic' ? 'dark' : 'light'} />
+      
+      {isDesktop && <DesktopSidebar />}
+
+      <View style={{ flex: 1 }}>
+        <Tabs
+          tabBar={(props) => isDesktop ? null : <FloatingNav {...props} />}
+          screenOptions={{ 
+            headerShown: false,
+            sceneStyle: { backgroundColor: 'transparent' }
+          }}
+        >
+          <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <Home size={22} color={color} /> }} />
+          <Tabs.Screen name="history" options={{ title: 'Notebook', tabBarIcon: ({ color }) => <BookOpen size={22} color={color} /> }} />
+          <Tabs.Screen name="summary" options={{ href: null }} />
+        </Tabs>
+        <BotSessionBanner />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  sidebar: {
+    width: 260,
+    borderRightWidth: 1,
+    paddingTop: 32,
+    paddingHorizontal: 16,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 40,
+    paddingHorizontal: 12,
+    gap: 12,
+  },
+  logo: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  navContainer: {
+    gap: 8,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 12,
+  },
+  sidebarLabel: {
+    fontSize: 15,
+  },
+});

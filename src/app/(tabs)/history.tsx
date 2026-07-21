@@ -1,51 +1,65 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  RefreshControl, ActivityIndicator
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
-import { FileText, Calendar, Search, ChevronRight, Mic, Video, Hash } from 'lucide-react-native';
+import { FileText, RefreshCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
-import { BotPlatform } from '../../contexts/BotSessionContext';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { MeetingListItem } from '../../components/ui/MeetingListItem';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { useMeetings } from '../../contexts/MeetingsContext';
 
-// ─── Source badge ─────────────────────────────────────────────────────────────
+type Filter = 'all' | 'mic' | 'zoom' | 'meet' | 'teams';
 
-function SourceTag({ source, platform }: { source?: string; platform?: BotPlatform }) {
-  const { theme } = useTheme();
-  if (!source || source === 'mic') {
-    return (
-      <View style={[styles.sourceTag, { backgroundColor: theme.colors.primary + '18', borderColor: theme.colors.primary + '44' }]}>
-        <Mic size={11} color={theme.colors.primary} />
-      </View>
-    );
-  }
-  const platformColors: Record<string, string> = {
-    zoom: '#2D8CFF',
-    meet: '#00897B',
-    teams: '#5B5EA6',
-    discord: '#5865F2',
-  };
-  const color = platformColors[platform ?? ''] ?? '#9CA3AF';
-  const Icon = platform === 'discord' ? Hash : Video;
-  return (
-    <View style={[styles.sourceTag, { backgroundColor: color + '18', borderColor: color + '44' }]}>
-      <Icon size={11} color={color} />
-    </View>
-  );
-}
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'mic', label: 'Mic' },
+  { key: 'zoom', label: 'Zoom' },
+  { key: 'meet', label: 'Meet' },
+  { key: 'teams', label: 'Teams' },
+];
 
-export default function HistoryScreen() {
+let notebookRenderCount = 0;
+
+export default function NotebookScreen() {
+  notebookRenderCount++;
+  console.log(`[PIPELINE] Notebook render count: ${notebookRenderCount}`);
   const { theme } = useTheme();
   const router = useRouter();
-  const [meetings, setMeetings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { meetings, loading, refreshMeetings } = useMeetings();
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
 
-  useEffect(() => {
-    supabase.from('meetings').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setMeetings(data);
-        setLoading(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshMeetings();
+    setRefreshing(false);
+  };
+
+  const filtered = useMemo(() => {
+    let list = meetings;
+    if (filter !== 'all') {
+      list = list.filter(m => {
+        if (filter === 'mic') return !m.source || m.source === 'mic';
+        if (filter === 'meet') return m.platform === 'meet' || m.platform === 'google_meet';
+        return m.platform === filter;
       });
-  }, []);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(m =>
+        m.title?.toLowerCase().includes(q) ||
+        m.summary?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [meetings, filter, search]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -55,123 +69,92 @@ export default function HistoryScreen() {
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 0.3 }}
       />
-
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>History</Text>
-        <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
-          <Search size={20} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={theme.colors.primary} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Notebook</Text>
         </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {meetings.map((meeting) => (
-            <TouchableOpacity 
-              key={meeting.id} 
-              style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              onPress={() => router.push({ pathname: '/summary', params: { meetingId: meeting.id } })}
+
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search meetings, transcripts…"
+          />
+        </View>
+
+        {/* Filter chips */}
+        <View style={styles.filtersRow}>
+          {FILTERS.map(f => (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: filter === f.key ? theme.colors.primary : theme.colors.surface,
+                  borderColor: filter === f.key ? theme.colors.primary : theme.colors.border,
+                }
+              ]}
             >
-              <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]}>
-                <FileText size={20} color={theme.colors.primary} />
-              </View>
-              <View style={styles.info}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>{meeting.title}</Text>
-                <View style={styles.meta}>
-                  <Calendar size={14} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
-                  <Text style={[styles.date, { color: theme.colors.textMuted }]}>
-                    {new Date(meeting.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-              {/* Source icon */}
-              <SourceTag source={meeting.source} platform={meeting.platform} />
-              <ChevronRight size={20} color={theme.colors.textMuted} style={{ marginLeft: 4 }} />
+              <Text style={[styles.chipText, { color: filter === f.key ? '#FFF' : theme.colors.textMuted }]}>
+                {f.label}
+              </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-      )}
+        </View>
+
+        {/* List */}
+        {loading ? (
+          <ActivityIndicator style={{ marginTop: 60 }} color={theme.colors.primary} />
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <MeetingListItem
+                meeting={item}
+                onPress={() => router.push({ pathname: '/(tabs)/summary', params: { meetingId: item.id } })}
+              />
+            )}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon={<FileText size={28} color={theme.colors.textMuted} />}
+                title={search ? 'No results' : 'No meetings yet'}
+                subtitle={
+                  search
+                    ? 'Try a different search term or clear the filter'
+                    : 'Tap Record or Join to capture your first meeting'
+                }
+              />
+            }
+          />
+        )}
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 60,
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 8, marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  searchWrap: { paddingHorizontal: 20, marginBottom: 12 },
+  filtersRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 16 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 130,
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  iconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  info: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  date: {
-    fontSize: 13,
-  },
-  sourceTag: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
+  chipText: { fontSize: 13, fontWeight: '500' },
+  list: { paddingHorizontal: 20, paddingBottom: 120 },
 });

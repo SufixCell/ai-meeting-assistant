@@ -3,7 +3,11 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { ThemeProvider } from '../theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { BotSessionProvider } from '../contexts/BotSessionContext';
+import { SidebarProvider } from '../contexts/SidebarContext';
+import { MeetingsProvider } from '../contexts/MeetingsContext';
+import { PremiumSidebar } from '../components/PremiumSidebar';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 
 function RootLayoutNav() {
   const { session, initialized } = useAuth();
@@ -35,9 +39,16 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <BotSessionProvider>
-          <RootLayoutNav />
-        </BotSessionProvider>
+        <MeetingsProvider>
+          <SidebarProvider>
+            <BotSessionProvider>
+              <View style={{ flex: 1 }}>
+                <RootLayoutNav />
+                <PremiumSidebar />
+              </View>
+            </BotSessionProvider>
+          </SidebarProvider>
+        </MeetingsProvider>
       </ThemeProvider>
     </AuthProvider>
   );

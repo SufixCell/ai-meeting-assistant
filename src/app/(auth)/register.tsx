@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import { useTheme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { UserPlus, Mail, Lock, User, Phone } from 'lucide-react-native';
+import { UserPlus, Mail, Lock, User, Phone, Sparkles } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -22,7 +23,6 @@ export default function RegisterScreen() {
       return;
     }
     
-    // Very basic username format check
     if (username.includes('@') || username.includes('+')) {
       setError('Username cannot contain @ or + symbols.');
       return;
@@ -31,10 +31,8 @@ export default function RegisterScreen() {
     setLoading(true);
     setError('');
 
-    // Pre-flight check: is username available?
     const { data: isAvailable, error: checkError } = await supabase.rpc('is_username_available', { p_username: username });
     if (checkError) {
-      // Fallback if RPC isn't deployed yet
       console.log('Username check failed (might not be deployed):', checkError);
     } else if (isAvailable === false) {
       setError('Username is already taken.');
@@ -42,7 +40,6 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Format phone number to start with + if it doesn't already, assuming country code is entered
     let formattedPhone = phone.trim();
     if (formattedPhone && !formattedPhone.startsWith('+')) {
       formattedPhone = '+' + formattedPhone;
@@ -68,7 +65,6 @@ export default function RegisterScreen() {
     if (signUpError) {
       setError(signUpError.message);
     } else {
-      // Usually Supabase requires email confirmation, but we'll redirect to tabs directly for now
       router.replace('/(tabs)');
     }
   };
@@ -81,11 +77,17 @@ export default function RegisterScreen() {
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 0.4 }}
       />
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={[styles.iconWrapper, { backgroundColor: theme.colors.surfaceHighlight }]} >
-             <UserPlus size={32} color={theme.colors.primary} />
+      <Animated.ScrollView contentContainerStyle={styles.scrollContent} entering={FadeIn.duration(600)} showsVerticalScrollIndicator={false}>
+        
+        {/* Logo Area */}
+        <View style={styles.logoArea}>
+          <View style={[styles.logoIconWrap, { backgroundColor: theme.colors.surfaceHighlight }]}>
+             <Sparkles size={36} color={theme.colors.primary} />
           </View>
+          <Text style={[styles.brandText, { color: theme.colors.primary }]}>NOTIA</Text>
+        </View>
+
+        <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.text }]}>Create Account</Text>
           <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Start capturing your meetings with AI</Text>
         </View>
@@ -146,8 +148,10 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]} onPress={handleRegister} disabled={loading}>
-            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryButtonText}>Sign Up</Text>}
+          <TouchableOpacity onPress={handleRegister} disabled={loading} style={styles.primaryBtnWrap}>
+            <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.primaryGradient} start={{x:0, y:0}} end={{x:1,y:1}}>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryButtonText}>Sign Up</Text>}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -157,89 +161,31 @@ export default function RegisterScreen() {
             <Text style={[styles.linkText, { color: theme.colors.primary }]}>Sign In</Text>
           </TouchableOpacity>
         </View>
-      </View>
+
+      </Animated.ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  iconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  errorContainer: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  form: {
-    gap: 16,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-  },
-  primaryButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 40,
-  },
-  footerText: {
-    fontSize: 15,
-  },
-  linkText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, padding: 24, justifyContent: 'center' },
+  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoIconWrap: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  brandText: { fontSize: 32, fontWeight: '800', letterSpacing: 2 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
+  subtitle: { fontSize: 16 },
+  errorContainer: { padding: 12, borderRadius: 12, marginBottom: 20 },
+  errorText: { fontSize: 14, textAlign: 'center' },
+  form: { gap: 16 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, height: 54 },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 16 },
+  primaryBtnWrap: { borderRadius: 14, overflow: 'hidden', marginTop: 8 },
+  primaryGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 40 },
+  footerText: { fontSize: 15 },
+  linkText: { fontSize: 15, fontWeight: '600' },
 });

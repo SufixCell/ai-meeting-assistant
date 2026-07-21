@@ -43,6 +43,7 @@ function PlatformIcon({ platform, color, size = 16 }: { platform: BotPlatform; c
 const STATUS_LABELS = {
   joining: 'Joining…',
   in_call: 'In call',
+  disconnect_requested: 'Disconnect requested',
   disconnecting: 'Disconnecting…',
   processing: 'Processing…',
   idle: '',

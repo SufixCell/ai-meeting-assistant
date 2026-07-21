@@ -1,51 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share as RNShare, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
-import { ArrowLeft, Share, Calendar, CheckSquare, AlignLeft, Sparkles, CheckCircle2 } from 'lucide-react-native';
+import { ArrowLeft, Clock, MoreVertical, Sparkles, CheckCircle2, CheckSquare } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { generateMeetingSummary, type MeetingSummary } from '../../lib/openrouter';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Badge, type BadgeSource } from '../../components/ui/Badge';
+import { Text } from '../../components/ui/Text';
+import { AnimatedPressable } from '../../components/animated-pressable';
+import { ActionMenuModal } from '../../components/ActionMenuModal';
+import { ConfirmDeleteModal } from '../../components/ConfirmDeleteModal';
+import { RenameModal } from '../../components/RenameModal';
+import { exportTranscript } from '../../utils/export';
+import { useMeetings } from '../../contexts/MeetingsContext';
 
 export default function SummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user, initialized } = useAuth();
+  const { deleteMeeting, renameMeeting, refreshMeetings, upsertMeeting } = useMeetings();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<MeetingSummary | null>(null);
   const [rawTranscript, setRawTranscript] = useState('');
-  const [saved, setSaved] = useState(false);
   const lastProcessedTranscriptRef = React.useRef<string | null>(null);
   const lastProcessedMeetingIdRef = React.useRef<string | null>(null);
+  const lastProcessedTsRef = React.useRef<string | null>(null);
+  
+  const [checkedActions, setCheckedActions] = useState<Set<number>>(new Set());
+  const [meetingSource, setMeetingSource] = useState<string>('');
+  const [meetingDate, setMeetingDate] = useState<string>('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
 
   const meetingId = params.meetingId as string;
   const transcriptParam = params.transcript as string;
-  // These are passed by BotSessionContext when the backend already did summarization
   const precomputedSummary = params.precomputedSummary as string | undefined;
   const precomputedActionItemsRaw = params.precomputedActionItems as string | undefined;
+  const tsParam = params.ts as string | undefined;
+  const badgeSource: BadgeSource = (() => {
+    const normalized = (meetingSource || 'mic').toLowerCase();
+    if (normalized === 'google_meet') return 'meet';
+    if (['mic', 'zoom', 'meet', 'teams', 'discord', 'bot'].includes(normalized)) {
+      return normalized as BadgeSource;
+    }
+    return 'mic';
+  })();
+
+  const getCurrentUserId = async () => {
+    if (user?.id) return user.id;
+
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user?.id) {
+      throw new Error('You must be signed in before saving a transcript.');
+    }
+
+    return data.user.id;
+  };
 
   useEffect(() => {
     const init = async () => {
-      // Prevent double-processing the same transcript (React strict mode or fast re-renders)
-      if (!meetingId && transcriptParam && transcriptParam === lastProcessedTranscriptRef.current) {
-        return;
-      }
-      if (!meetingId && transcriptParam) {
-        lastProcessedTranscriptRef.current = transcriptParam;
-        lastProcessedMeetingIdRef.current = null; // reset
-      }
+      if (!initialized) return;
 
-      if (meetingId && meetingId === lastProcessedMeetingIdRef.current) {
-        return; // Already loaded this meeting ID
+      // If we already processed this EXACT timestamp, return early to prevent double-calls.
+      // But if tsParam changes (new recording), we ALWAYS run.
+      if (tsParam && tsParam === lastProcessedTsRef.current) return;
+      if (tsParam) {
+        lastProcessedTsRef.current = tsParam;
+      } else {
+        // Fallback for older links or imports without ts
+        if (!meetingId && transcriptParam && transcriptParam === lastProcessedTranscriptRef.current) return;
+        if (!meetingId && transcriptParam) {
+          lastProcessedTranscriptRef.current = transcriptParam;
+          lastProcessedMeetingIdRef.current = null;
+        }
       }
+      
+      if (meetingId && meetingId === lastProcessedMeetingIdRef.current) return;
       if (meetingId) {
         lastProcessedMeetingIdRef.current = meetingId;
-        lastProcessedTranscriptRef.current = null; // reset
+        lastProcessedTranscriptRef.current = null;
       }
 
       setLoading(true);
@@ -54,7 +94,6 @@ export default function SummaryScreen() {
       setRawTranscript('');
 
       try {
-        // Case 1: viewing an existing meeting from history
         if (meetingId) {
           const { data, error: dbErr } = await supabase
             .from('meetings')
@@ -71,6 +110,8 @@ export default function SummaryScreen() {
               actionItems: data.action_items || [],
               keyDecisions: data.key_decisions || [],
             });
+            setMeetingSource(data.source || data.platform || 'Recorded');
+            setMeetingDate(new Date(data.created_at).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
           }
           setLoading(false);
           return;
@@ -78,19 +119,45 @@ export default function SummaryScreen() {
 
         const transcript = transcriptParam || '';
         setRawTranscript(transcript);
+        const userId = await getCurrentUserId();
 
         if (!transcript || transcript.trim().length < 5) {
-          setSummary({
-            title: 'Recording',
+          const result = {
+            title: 'Empty Recording',
             summary: 'No speech was captured. Make sure your microphone is allowed and speak clearly.',
             actionItems: [],
             keyDecisions: [],
-          });
+          };
+          console.log('[Meeting] Object Created (Empty Recording)');
+          setSummary(result);
+          
+          console.log('[Supabase] Insert Started (Empty Recording)');
+          const insertRes = await supabase
+            .from('meetings')
+            .insert({
+              user_id: userId,
+              title: result.title,
+              transcript: transcript || 'No speech captured.',
+              summary: result.summary,
+              action_items: result.actionItems,
+              key_decisions: result.keyDecisions,
+            })
+            .select('id, title, created_at, summary')
+            .single();
+          
+          
+          if (insertRes.error) {
+            console.log('[Supabase] Insert Error', insertRes.error);
+            throw new Error(`Insert failed: ${insertRes.error.message}`);
+          } else {
+            console.log('[Supabase] Insert Success');
+            upsertMeeting(insertRes.data);
+          }
+          await refreshMeetings();
           setLoading(false);
           return;
         }
 
-        // Case 2: backend already summarized (bot meeting) — use pre-computed result directly
         if (precomputedSummary) {
           let actionItems: string[] = [];
           try { actionItems = JSON.parse(precomputedActionItemsRaw || '[]'); } catch (_) {}
@@ -101,32 +168,54 @@ export default function SummaryScreen() {
             keyDecisions: [],
           };
           setSummary(result);
-          // Save to Supabase
-          await supabase.from('meetings').insert({
-            user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+          setMeetingSource('Bot');
+          setMeetingDate(new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+          
+          const insertRes = await supabase
+            .from('meetings')
+            .insert({
+              user_id: userId,
+              title: result.title,
+              transcript,
+              summary: result.summary,
+              action_items: result.actionItems,
+              key_decisions: result.keyDecisions,
+            })
+            .select('id, title, created_at, summary')
+            .single();
+          console.log('Bot Insert Result:', insertRes);
+          if (insertRes.error) throw new Error(`Insert failed: ${insertRes.error.message}`);
+          upsertMeeting(insertRes.data);
+          await refreshMeetings();
+          setLoading(false);
+          return;
+        }
+
+        const result = await generateMeetingSummary(transcript);
+        setSummary(result);
+        setMeetingSource('Mic');
+        setMeetingDate(new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+
+        const insertRes = await supabase
+          .from('meetings')
+          .insert({
+            user_id: userId,
             title: result.title,
             transcript,
             summary: result.summary,
             action_items: result.actionItems,
             key_decisions: result.keyDecisions,
-            source: 'bot',
-          });
-          setLoading(false);
-          return;
+          })
+          .select('id, title, created_at, summary')
+          .single();
+        if (insertRes.error) {
+          console.log('[Supabase] Insert Error', insertRes.error);
+          throw new Error(`Insert failed: ${insertRes.error.message}`);
+        } else {
+          console.log('[Supabase] Insert Success');
+          upsertMeeting(insertRes.data);
         }
-
-        // Case 3: local mic recording — call OpenRouter to summarize
-        const result = await generateMeetingSummary(transcript);
-        setSummary(result);
-
-        await supabase.from('meetings').insert({
-          user_id: user?.id || '00000000-0000-0000-0000-000000000000',
-          title: result.title,
-          transcript,
-          summary: result.summary,
-          action_items: result.actionItems,
-          key_decisions: result.keyDecisions,
-        });
+        await refreshMeetings();
 
       } catch (err: any) {
         console.error('Summary error:', err);
@@ -137,266 +226,241 @@ export default function SummaryScreen() {
     };
 
     init();
-  }, [meetingId, transcriptParam, precomputedSummary]);
+  }, [initialized, user?.id, meetingId, transcriptParam, precomputedSummary, tsParam, refreshMeetings, upsertMeeting]);
+
+  const toggleAction = (index: number) => {
+    const newSet = new Set(checkedActions);
+    if (newSet.has(index)) newSet.delete(index);
+    else newSet.add(index);
+    setCheckedActions(newSet);
+  };
+
+  const handleShare = async () => {
+    if (!summary) return;
+    await exportTranscript(summary.title, {
+      summary: summary.summary,
+      transcript: rawTranscript,
+      actionItems: summary.actionItems,
+      keyDecisions: summary.keyDecisions,
+      date: new Date().toISOString()
+    });
+  };
+
+  const handleDelete = () => {
+    setDeleteModalVisible(true);
+  };
+
+  const handleRename = () => {
+    setRenameModalVisible(true);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.loadingOrb}>
+           <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+        <Text variant="h2" style={{ marginTop: 24 }}>Synthesizing knowledge...</Text>
+        <Text variant="body" muted style={{ marginTop: 8 }}>Extracting key insights and actions</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <Text variant="h2" style={{ color: theme.colors.danger }}>Something went wrong</Text>
+        <Text variant="body" muted style={{ marginTop: 8 }}>{error}</Text>
+        <AnimatedPressable style={styles.backBtn} onPress={() => router.back()}>
+           <Text variant="body" color={theme.colors.primary}>Go Back</Text>
+        </AnimatedPressable>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-
-      {/* Clean Header */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
-        >
-          <ArrowLeft size={20} color={theme.colors.text} />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]} numberOfLines={1}>
-          {loading ? 'Generating...' : (summary?.title || 'Meeting Summary')}
-        </Text>
-
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}
-        >
-          <Share size={20} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Loading */}
-      {loading && (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>AI is analysing…</Text>
-          <Text style={[styles.loadingSub, { color: theme.colors.textMuted }]}>Powered by OpenRouter gpt-4o-mini</Text>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
+        <View style={[styles.header, { justifyContent: 'space-between' }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+            <ArrowLeft size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.headerIcon}>
+            <MoreVertical size={24} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* Error */}
-      {!loading && error && (
-        <View style={styles.centered}>
-          <Text style={[styles.loadingTitle, { color: theme.colors.danger }]}>Something went wrong</Text>
-          <Text style={[styles.loadingSub, { color: theme.colors.textMuted }]}>{error}</Text>
-        </View>
-      )}
-
-      {/* Content */}
-      {!loading && !error && summary && (
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* AI Summary */}
-          <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <BlurView intensity={theme.name === 'arctic' ? 40 : 10} tint={theme.name === 'arctic' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
-            <View style={styles.cardHeader}>
-              <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
-                <Sparkles size={16} color="#FFF" />
-              </LinearGradient>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>AI Executive Summary</Text>
-            </View>
-            <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>{summary.summary}</Text>
+        {/* Editorial Content Area */}
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          
+          <Text variant="display" style={[styles.editorialTitle, { color: theme.colors.text }]}>
+             {summary?.title || 'Untitled Conversation'}
+          </Text>
+          
+          {/* Document Meta Data */}
+          <View style={styles.documentMeta}>
+             <Clock size={16} color={theme.colors.textMuted} />
+             <Text variant="caption" muted>{meetingDate}</Text>
+             <Text variant="caption" muted>·</Text>
+             <Badge source={badgeSource} />
           </View>
 
-          {/* Action Items */}
-          {summary.actionItems.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <BlurView intensity={theme.name === 'arctic' ? 40 : 10} tint={theme.name === 'arctic' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
-              <View style={styles.cardHeader}>
-                <LinearGradient colors={[theme.colors.success, '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
-                  <CheckSquare size={16} color="#FFF" />
-                </LinearGradient>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Action Items</Text>
+          {/* AI Executive Summary Block */}
+          {summary?.summary && (
+            <View style={[styles.editorialBlock, styles.calloutBlock, { backgroundColor: theme.colors.surfaceHighlight, borderLeftColor: theme.colors.primary }]}>
+              <View style={styles.blockHeader}>
+                 <Sparkles size={18} color={theme.colors.primary} />
+                 <Text variant="h2" style={{ fontSize: 16 }}>Executive Summary</Text>
               </View>
-              {summary.actionItems.map((item, i) => (
-                <View key={i} style={styles.listRow}>
-                  <View style={[styles.checkbox, { borderColor: theme.colors.textMuted }]} />
-                  <Text style={[styles.listText, { color: theme.colors.text }]}>{item}</Text>
-                </View>
-              ))}
+              <Text variant="body" style={styles.proseText}>
+                {summary.summary}
+              </Text>
             </View>
           )}
 
           {/* Key Decisions */}
-          {summary.keyDecisions.length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <BlurView intensity={theme.name === 'arctic' ? 40 : 10} tint={theme.name === 'arctic' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
-              <View style={styles.cardHeader}>
-                <LinearGradient colors={[theme.colors.purple, theme.colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
-                  <CheckCircle2 size={16} color="#FFF" />
-                </LinearGradient>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Key Decisions</Text>
+          {summary?.keyDecisions && summary.keyDecisions.length > 0 && (
+            <View style={styles.editorialBlock}>
+              <View style={styles.blockHeader}>
+                 <CheckCircle2 size={18} color={theme.colors.purple} />
+                 <Text variant="h2" style={{ fontSize: 18 }}>Key Decisions</Text>
               </View>
               {summary.keyDecisions.map((d, i) => (
-                <View key={i} style={styles.listRow}>
-                  <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
-                  <Text style={[styles.listText, { color: theme.colors.text }]}>{d}</Text>
+                <View key={i} style={styles.bulletRow}>
+                  <View style={[styles.bulletDot, { backgroundColor: theme.colors.text }]} />
+                  <Text variant="body" style={styles.proseText}>{d}</Text>
                 </View>
               ))}
             </View>
           )}
 
-          {/* Full Transcript */}
-          {rawTranscript.trim().length > 0 && (
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <BlurView intensity={theme.name === 'arctic' ? 40 : 10} tint={theme.name === 'arctic' ? 'light' : 'dark'} style={StyleSheet.absoluteFill} />
-              <View style={styles.cardHeader}>
-                <LinearGradient colors={[theme.colors.purple, '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
-                  <AlignLeft size={16} color="#FFF" />
-                </LinearGradient>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Full Transcript</Text>
+          {/* Action Items */}
+          {summary?.actionItems && summary.actionItems.length > 0 && (
+            <View style={styles.editorialBlock}>
+              <View style={styles.blockHeader}>
+                 <CheckSquare size={18} color={theme.colors.success} />
+                 <Text variant="h2" style={{ fontSize: 18 }}>Action Items</Text>
               </View>
-              <View style={[styles.transcriptBox, { borderLeftColor: theme.colors.primary }]}>
-                <Text style={[styles.transcriptText, { color: theme.colors.textMuted }]}>{rawTranscript}</Text>
-              </View>
+              {summary.actionItems.map((item, i) => {
+                const isChecked = checkedActions.has(i);
+                return (
+                  <TouchableOpacity key={i} style={styles.taskRow} onPress={() => toggleAction(i)} activeOpacity={0.7}>
+                    <View style={[styles.taskCheckbox, { borderColor: isChecked ? theme.colors.success : theme.colors.border, backgroundColor: isChecked ? theme.colors.success : 'transparent' }]}>
+                      {isChecked && <CheckSquare size={14} color="#FFF" />}
+                    </View>
+                    <Text variant="body" style={[styles.proseText, { textDecorationLine: isChecked ? 'line-through' : 'none', opacity: isChecked ? 0.5 : 1 }]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 
-          {/* Export Button */}
-          <TouchableOpacity activeOpacity={0.85} style={styles.exportBtn}>
-            <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.exportGradient}>
-              <Calendar size={18} color="#FFF" style={{ marginRight: 8 }} />
-              <Text style={styles.exportText}>Export to Calendar</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          {/* Transcript */}
+          {rawTranscript && (
+             <View style={[styles.editorialBlock, { marginTop: 40, paddingTop: 40, borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+               <Text variant="h2" muted style={{ marginBottom: 24, fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 }}>Full Transcript</Text>
+               <Text variant="body" style={[styles.proseText, { color: theme.colors.textMuted }]}>
+                 {rawTranscript}
+               </Text>
+             </View>
+          )}
+
+          {/* Bottom Padding for floating toolbar space removed */}
+          <View style={{ height: 60 }} />
         </ScrollView>
-      )}
+
+        <ActionMenuModal 
+          visible={menuVisible} 
+          onClose={() => setMenuVisible(false)} 
+          title={summary?.title || 'Meeting Options'}
+          onRename={handleRename}
+          onExport={handleShare}
+          onDelete={handleDelete}
+        />
+
+        <ConfirmDeleteModal
+          visible={deleteModalVisible}
+          onClose={() => setDeleteModalVisible(false)}
+          onConfirm={async () => {
+            if (meetingId) {
+              // Navigate back instantly for premium feel
+              router.back();
+              await deleteMeeting(meetingId);
+            }
+          }}
+        />
+
+        <RenameModal
+          visible={renameModalVisible}
+          onClose={() => setRenameModalVisible(false)}
+          initialName={summary?.title || 'Untitled Conversation'}
+          onSave={async (newName) => {
+            if (meetingId && newName.trim() && summary) {
+              const success = await renameMeeting(meetingId, newName.trim());
+              if (success) {
+                setSummary({ ...summary, title: newName.trim() });
+              }
+            }
+          }}
+        />
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 56,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: -0.4,
-    textAlign: 'center',
-    marginHorizontal: 12,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  loadingTitle: {
-    fontSize: 20,
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  loadingOrb: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  backBtn: { marginTop: 32, padding: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12 },
+  
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, height: 50 },
+  headerIcon: { padding: 8 },
+  
+  scrollContent: { paddingHorizontal: 24, paddingTop: 16, maxWidth: 800, alignSelf: 'center', width: '100%' },
+  
+  editorialTitle: {
+    fontSize: 40,
     fontWeight: '700',
-    marginTop: 20,
-    textAlign: 'center',
+    letterSpacing: -1.5,
+    lineHeight: 48,
+    marginBottom: 20,
   },
-  loadingSub: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  card: {
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  cardHeader: {
+  documentMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 48,
   },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  
+  editorialBlock: {
+    marginBottom: 40,
+  },
+  calloutBlock: {
+    padding: 24,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+  },
+  blockHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 16,
   },
-  cardTitle: {
+  proseText: {
     fontSize: 17,
-    fontWeight: '600',
-    marginLeft: 10,
+    lineHeight: 28,
     letterSpacing: -0.2,
   },
-  bodyText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
-    borderWidth: 2,
-    marginRight: 10,
-    marginTop: 2,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 10,
-    marginTop: 6,
-  },
-  listText: {
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
-  },
-  transcriptBox: {
-    borderLeftWidth: 2,
-    paddingLeft: 12,
-  },
-  transcriptText: {
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  exportBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginTop: 6,
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-  },
-  exportGradient: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exportText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  bulletDot: { width: 6, height: 6, borderRadius: 3, marginTop: 12, marginRight: 16, opacity: 0.5 },
+  
+  taskRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, paddingRight: 24 },
+  taskCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, marginRight: 16, marginTop: 3, alignItems: 'center', justifyContent: 'center' },
 });
