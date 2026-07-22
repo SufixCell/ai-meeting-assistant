@@ -28,7 +28,7 @@ function DesktopSidebar() {
   const widthAnim = useSharedValue(260);
 
   React.useEffect(() => {
-    widthAnim.value = withSpring(collapsed ? 96 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
+    widthAnim.value = withSpring(collapsed ? 120 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
   }, [collapsed]);
 
   const animatedSidebarStyle = useAnimatedStyle(() => ({
@@ -53,7 +53,7 @@ function DesktopSidebar() {
         }
       ]}
     >
-      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 0 }]}>
         <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
