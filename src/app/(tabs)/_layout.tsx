@@ -14,6 +14,7 @@ function DesktopSidebar() {
   const { openSidebar } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
+  const [collapsed, setCollapsed] = React.useState(false);
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
@@ -21,12 +22,23 @@ function DesktopSidebar() {
   ];
 
   return (
-    <View style={[styles.sidebar, { backgroundColor: theme.colors.background, borderRightColor: theme.colors.border }]}>
-      <View style={styles.sidebarHeader}>
-        <AnimatedPressable onPress={openSidebar} style={styles.menuIconBtn}>
-          <Menu size={20} color={theme.colors.text} />
+    <View 
+      style={[
+        styles.sidebar, 
+        { 
+          width: collapsed ? 68 : 260, 
+          backgroundColor: theme.colors.background, 
+          borderRightColor: theme.colors.border 
+        }
+      ]}
+    >
+      <View style={[styles.sidebarHeader, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}>
+        <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
+          <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
-        <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
+        {!collapsed && (
+          <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
+        )}
       </View>
       
       <View style={styles.navContainer}>
@@ -41,30 +53,35 @@ function DesktopSidebar() {
               scaleTo={0.96}
               style={[
                 styles.sidebarItem, 
+                collapsed && { justifyContent: 'center', paddingHorizontal: 0 },
                 isActive && { backgroundColor: theme.colors.surfaceHighlight }
               ]}
             >
               <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textMuted} />
-              <Text style={[
-                styles.sidebarLabel, 
-                { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
-              ]}>
-                {item.name}
-              </Text>
+              {!collapsed && (
+                <Text style={[
+                  styles.sidebarLabel, 
+                  { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
+                ]}>
+                  {item.name}
+                </Text>
+              )}
             </AnimatedPressable>
           );
         })}
         
-        {/* Settings triggers Premium Sidebar */}
+        {/* Settings triggers Premium Sidebar Drawer */}
         <AnimatedPressable 
           onPress={openSidebar}
           scaleTo={0.96}
-          style={styles.sidebarItem}
+          style={[styles.sidebarItem, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}
         >
           <Settings size={20} color={theme.colors.textMuted} />
-          <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
-            Settings
-          </Text>
+          {!collapsed && (
+            <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
+              Settings
+            </Text>
+          )}
         </AnimatedPressable>
       </View>
     </View>

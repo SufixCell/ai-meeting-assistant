@@ -248,9 +248,11 @@ export default function HomeScreen() {
             {/* Top Bar Header */}
             <View style={[styles.topAppBar, { borderBottomColor: theme.colors.border }]}>
               <View style={styles.brandGroup}>
-                <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={styles.menuTriggerBtn}>
-                  <Menu size={22} color={theme.colors.text} />
-                </TouchableOpacity>
+                {!isDesktop && (
+                  <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={styles.menuTriggerBtn}>
+                    <Menu size={22} color={theme.colors.text} />
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity onPress={openSidebar} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
