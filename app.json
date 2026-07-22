@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ai-meeting-assistant",
-    "slug": "ai-meeting-assistant",
+    "name": "Notia",
+    "slug": "notia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

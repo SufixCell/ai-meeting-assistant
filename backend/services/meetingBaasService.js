@@ -8,7 +8,7 @@ async function joinMeeting(meetingUrl) {
     try {
         const payload = {
             meeting_url: meetingUrl,
-            bot_name: "AI Meeting Assistant",
+            bot_name: "Notia AI",
             recording_mode: "speaker_view",
             speech_to_text: {
                 provider: "Default"

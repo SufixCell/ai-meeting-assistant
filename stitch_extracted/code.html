@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Scribe AI | Meeting Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        body {
+            background-color: #0c1324;
+            color: #dce1fb;
+            -webkit-font-smoothing: antialiased;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0c1324;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-on-surface": "#2a3043",
+                      "primary-container": "#4f46e5",
+                      "on-primary-container": "#dad7ff",
+                      "on-error": "#690005",
+                      "surface-bright": "#33394c",
+                      "inverse-primary": "#4d44e3",
+                      "on-tertiary": "#571f00",
+                      "secondary-fixed-dim": "#bec6e0",
+                      "on-tertiary-fixed": "#351000",
+                      "secondary": "#bec6e0",
+                      "error-container": "#93000a",
+                      "secondary-fixed": "#dae2fd",
+                      "on-primary-fixed": "#0f0069",
+                      "outline": "#918fa1",
+                      "tertiary-container": "#a44100",
+                      "on-surface-variant": "#c7c4d8",
+                      "surface": "#0c1324",
+                      "on-secondary": "#283044",
+                      "surface-tint": "#c3c0ff",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "primary-fixed-dim": "#c3c0ff",
+                      "on-tertiary-container": "#ffd2be",
+                      "surface-container": "#191f31",
+                      "surface-container-low": "#151b2d",
+                      "secondary-container": "#3f465c",
+                      "primary": "#c3c0ff",
+                      "on-background": "#dce1fb",
+                      "surface-variant": "#2e3447",
+                      "on-surface": "#dce1fb",
+                      "on-error-container": "#ffdad6",
+                      "primary-fixed": "#e2dfff",
+                      "inverse-surface": "#dce1fb",
+                      "on-secondary-fixed-variant": "#3f465c",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-secondary-container": "#adb4ce",
+                      "surface-dim": "#0c1324",
+                      "surface-container-lowest": "#070d1f",
+                      "tertiary": "#ffb695",
+                      "background": "#0c1324",
+                      "error": "#ffb4ab",
+                      "outline-variant": "#464555",
+                      "on-primary-fixed-variant": "#3323cc",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "on-primary": "#1d00a5",
+                      "surface-container-high": "#23293c",
+                      "on-secondary-fixed": "#131b2e",
+                      "surface-container-highest": "#2e3447"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "container-max": "1440px",
+                      "section-gap": "48px",
+                      "gutter": "24px",
+                      "margin-mobile": "16px",
+                      "unit": "4px",
+                      "stack-gap": "12px"
+              },
+              "fontFamily": {
+                      "label-caps": ["Geist"],
+                      "headline-md": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-md-mobile": ["Inter"],
+                      "body-base": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "mono-data": ["Geist"]
+              },
+              "fontSize": {
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "body-base": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                      "body-sm": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "mono-data": ["12px", {"lineHeight": "18px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-40 bg-surface border-b border-outline-variant flex items-center justify-between px-margin-mobile h-16 transition-colors duration-200">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional, close-up studio portrait of a young tech professional with a friendly expression. The lighting is soft and cinematic with a deep navy and indigo color palette, reflecting a high-end corporate AI aesthetic. The background is a blurred modern office environment with minimal blue light accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlrf7BoWS_z_rqQyw18SWbM3lU9rkayslXmRP51dadEXl9Mg0l0EafpxsmYyuioXFmqFbBfyv1T4cZ_PaLlZ--SWWTR1iK7FvoODrdJodGYFqSjOsPk10lPbuSNlyy2mI9yGzjUSUXrjfj1-DweP_Tdlgcdxenfbc25pxgdhe-I2GnRGJeWShJEYhClY9kdyD9-b9hJ0JdTrqDiPXniLMASMxLZbX2tiCKQj-HpItq8HqjGtSYdYcXm-rGQe_3OcabjMi8Ph_d7Avq"/>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Scribe AI</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-surface-container-high transition-colors duration-200 text-on-surface-variant">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</header>
+<main class="max-w-4xl mx-auto px-margin-mobile py-8 space-y-8">
+<!-- Hero Section -->
+<section class="space-y-2">
+<h2 class="font-headline-md text-headline-md text-on-surface">Good Evening, Sufiyan</h2>
+<p class="font-body-base text-body-base text-on-surface-variant">Ready to capture your next meeting?</p>
+<div class="flex items-center gap-2 pt-4">
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-outline-variant">
+<span class="material-symbols-outlined text-[14px] text-primary">analytics</span>
+<span class="font-mono-data text-mono-data text-on-surface-variant uppercase">32 Total Meetings</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<span class="font-mono-data text-mono-data text-on-surface-variant">Last recorded yesterday</span>
+</div>
+</section>
+<!-- Search Bar -->
+<section>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container border border-outline-variant rounded-xl py-4 pl-12 pr-4 font-body-base text-body-base focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-outline" placeholder="Search meetings, transcripts, or action items..." type="text"/>
+</div>
+</section>
+<!-- Primary Recording Card -->
+<section class="relative overflow-hidden rounded-xl border border-outline-variant bg-surface-container-highest p-6 md:p-10 shadow-lg">
+
+<div class="relative z-10 flex flex-col items-center text-center space-y-6">
+<div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shadow-xl">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">mic</span>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">AI-powered real-time transcription</h3>
+<p class="font-body-base text-body-base text-on-surface-variant">Ready to capture every insight from your conversation.</p>
+</div>
+<div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+<button class="bg-primary-container text-on-primary-container px-8 py-3 rounded-full font-headline-md text-headline-md hover:brightness-110 active:scale-95 transition-all shadow-md w-full sm:w-auto">
+                        Start Recording
+                    </button>
+<div class="flex gap-4">
+<button class="flex items-center gap-2 border border-outline-variant px-5 py-3 rounded-full font-body-base text-body-base hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">add_link</span>
+                            Join Meeting
+                        </button>
+<button class="flex items-center gap-2 border border-outline-variant px-5 py-3 rounded-full font-body-base text-body-base hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">upload_file</span>
+                            Import
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Meetings Section -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md">Recent Meetings</h3>
+<button class="text-primary font-label-caps text-label-caps hover:underline">VIEW ALL</button>
+</div>
+<div class="grid gap-3">
+<!-- Meeting Item 1 -->
+<div class="group bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:bg-surface-variant transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<div class="space-y-1">
+<h4 class="font-body-base text-body-base font-semibold group-hover:text-primary transition-colors">Product Sync</h4>
+<div class="flex items-center gap-2 text-on-surface-variant font-mono-data text-mono-data">
+<span>Oct 24, 2023</span>
+<span>•</span>
+<span>42m</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wider">Processed</span>
+</div>
+</div>
+<div class="flex -space-x-2">
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center text-[10px] font-bold">JD</div>
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-tertiary-container flex items-center justify-center text-[10px] font-bold">SK</div>
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-secondary-container flex items-center justify-center text-[10px] font-bold">AM</div>
+</div>
+</div>
+<div class="pl-3 border-l-2 border-primary-container">
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 italic">
+                            Discussed the Q4 roadmap, finalized the migration plan for the core database, and assigned action items for the new UI components.
+                        </p>
+</div>
+</div>
+<!-- Meeting Item 2 -->
+<div class="group bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:bg-surface-variant transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<div class="space-y-1">
+<h4 class="font-body-base text-body-base font-semibold group-hover:text-primary transition-colors">Weekly Design Critique</h4>
+<div class="flex items-center gap-2 text-on-surface-variant font-mono-data text-mono-data">
+<span>Oct 23, 2023</span>
+<span>•</span>
+<span>1h 15m</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wider">Processed</span>
+</div>
+</div>
+<div class="flex -space-x-2">
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center text-[10px] font-bold">AC</div>
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-surface-container-high flex items-center justify-center text-[10px] font-bold">+4</div>
+</div>
+</div>
+<div class="pl-3 border-l-2 border-primary-container">
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 italic">
+                            Reviewed the dashboard prototype, feedback focused on improving the data density and accessibility contrast ratios for dark mode.
+                        </p>
+</div>
+</div>
+<!-- Meeting Item 3 -->
+<div class="group bg-surface-container-low border border-outline-variant rounded-xl p-4 hover:bg-surface-variant transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<div class="space-y-1">
+<h4 class="font-body-base text-body-base font-semibold group-hover:text-primary transition-colors">Client Onboarding: Helios Corp</h4>
+<div class="flex items-center gap-2 text-on-surface-variant font-mono-data text-mono-data">
+<span>Oct 22, 2023</span>
+<span>•</span>
+<span>28m</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase tracking-wider">Processed</span>
+</div>
+</div>
+<div class="flex -space-x-2">
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-tertiary-container flex items-center justify-center text-[10px] font-bold">TH</div>
+<div class="w-7 h-7 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center text-[10px] font-bold">ME</div>
+</div>
+</div>
+<div class="pl-3 border-l-2 border-primary-container">
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 italic">
+                            Initial kick-off meeting with Helios Corp stakeholders. High-level project timeline established and access permissions granted.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container border-t border-outline-variant flex justify-around items-center h-20 pb-safe px-4 shadow-2xl">
+<!-- Home (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-caps text-label-caps mt-0.5">Home</span>
+</a>
+<!-- Notebook -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors duration-150 active:scale-95" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-caps text-label-caps mt-0.5">Notebook</span>
+</a>
+<!-- Settings -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors duration-150 active:scale-95 relative" onclick="toggleSettingsMenu()">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps mt-0.5">Settings</span>
+<!-- Contextual Menu (Subtle Overlay Logic) -->
+<div class="hidden absolute bottom-24 right-0 w-48 bg-surface-container-high border border-outline-variant rounded-xl p-2 shadow-2xl animate-in slide-in-from-bottom-2 duration-200" id="settings-menu">
+<a class="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-variant font-body-base text-body-base" href="#">
+<span class="material-symbols-outlined text-[18px]">account_circle</span>
+                    My Profile
+                </a>
+<a class="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-variant font-body-base text-body-base" href="#">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+                    Account
+                </a>
+<div class="h-px bg-outline-variant my-1"></div>
+<a class="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-variant font-body-base text-body-base text-error" href="#">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+                    Sign Out
+                </a>
+</div>
+</button>
+</nav>
+<script>
+        function toggleSettingsMenu() {
+            const menu = document.getElementById('settings-menu');
+            menu.classList.toggle('hidden');
+            
+            // Close when clicking outside
+            document.addEventListener('click', function closeMenu(e) {
+                if (!e.target.closest('button')) {
+                    menu.classList.add('hidden');
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }
+
+        // Micro-interaction for meeting cards
+        document.querySelectorAll('.group').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

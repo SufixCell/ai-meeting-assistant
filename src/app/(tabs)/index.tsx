@@ -89,7 +89,11 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
-  const firstName = user?.email?.split('@')[0] || 'there';
+  const displayName = user?.user_metadata?.full_name || 
+                      user?.user_metadata?.name || 
+                      user?.user_metadata?.username || 
+                      (user?.email ? user.email.split('@')[0] : 'there');
+  const initial = displayName.charAt(0).toUpperCase();
   const activeMeeting = meetings.length > 0 ? meetings[0] : null;
   const recentList = meetings.slice(0, 6);
 
@@ -192,7 +196,7 @@ export default function HomeScreen() {
             {/* Top Bar with Avatar */}
             <View style={styles.topBar}>
               <TouchableOpacity onPress={openSidebar} style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 18 }}>S</Text>
+                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 18 }}>{initial}</Text>
               </TouchableOpacity>
             </View>
 
