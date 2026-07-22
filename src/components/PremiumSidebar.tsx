@@ -20,7 +20,13 @@ export function PremiumSidebar() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || 
+                      user?.user_metadata?.name || 
+                      user?.user_metadata?.username || 
+                      (user?.email ? user.email.split('@')[0] : 'User');
+  const initial = displayName.charAt(0).toUpperCase();
 
   const translateX = useSharedValue(-SIDEBAR_WIDTH);
   const backdropOpacity = useSharedValue(0);
@@ -81,10 +87,10 @@ export function PremiumSidebar() {
           <View style={styles.header}>
             <View style={styles.avatarRow}>
               <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-                <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '700' }}>S</Text>
+                <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '700' }}>{initial}</Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text variant="h3" style={{ fontWeight: '600' }}>Sufiyan</Text>
+                <Text variant="h3" style={{ fontWeight: '600' }}>{displayName}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                   <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 13 }}>AI Pro</Text>
                   <Text style={{ color: theme.colors.textMuted, fontSize: 13, marginLeft: 8 }}>· Synced just now</Text>
