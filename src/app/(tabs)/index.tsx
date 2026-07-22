@@ -254,12 +254,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
 
-                <TouchableOpacity onPress={openSidebar} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
-                    <Text style={{ color: theme.colors.onPrimary, fontWeight: '700', fontSize: 16 }}>{initial}</Text>
-                  </View>
-                  <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
-                </TouchableOpacity>
+                <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
               </View>
               
               <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>

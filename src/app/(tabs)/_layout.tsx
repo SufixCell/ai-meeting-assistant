@@ -7,16 +7,22 @@ import { FloatingNav } from '../../components/ui/floating-nav';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { BotSessionBanner } from '../../components/bot-session-banner';
 import { AnimatedPressable } from '../../components/animated-pressable';
-import React from 'react';
-
+import { useAuth } from '../../contexts/AuthContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
 
 function DesktopSidebar() {
   const { theme } = useTheme();
   const { openSidebar } = useSidebar();
+  const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
+
+  const displayName = user?.user_metadata?.full_name || 
+                      user?.user_metadata?.name || 
+                      user?.user_metadata?.username || 
+                      (user?.email ? user.email.split('@')[0] : 'User');
+  const initial = displayName.charAt(0).toUpperCase();
 
   const widthAnim = useSharedValue(260);
 
@@ -47,15 +53,14 @@ function DesktopSidebar() {
         }
       ]}
     >
-      <View style={[styles.sidebarHeader, collapsed && { justifyContent: 'center', paddingHorizontal: 0, marginBottom: 16 }]}>
+      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 8 }, collapsed && { justifyContent: 'center', paddingHorizontal: 0, marginBottom: 16 }]}>
         <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
-        {!collapsed && (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(100)}>
-            <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
-          </Animated.View>
-        )}
+
+        <AnimatedPressable onPress={openSidebar} activeOpacity={0.8} style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
+          <Text style={{ color: theme.colors.onPrimary, fontWeight: '700', fontSize: 15 }}>{initial}</Text>
+        </AnimatedPressable>
       </View>
       
       {!collapsed && (
@@ -148,6 +153,13 @@ const styles = StyleSheet.create({
   menuIconBtn: {
     padding: 6,
     borderRadius: 8,
+  },
+  avatarButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     width: 24,
