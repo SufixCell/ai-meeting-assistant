@@ -47,8 +47,8 @@ function DesktopSidebar() {
         animatedSidebarStyle,
         { 
           backgroundColor: theme.colors.background, 
-          borderRightWidth: 0,
-          borderRightColor: 'transparent',
+          borderRightWidth: collapsed ? 0 : 1,
+          borderRightColor: collapsed ? 'transparent' : theme.colors.border,
           paddingHorizontal: 16,
         }
       ]}
