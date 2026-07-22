@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, useWindowDimensions, Platform, TouchableOpacity, Share as RNShare } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
-import { Mic, Search, ChevronRight, FileText, CheckCircle2, Clock, MoreVertical } from 'lucide-react-native';
+import { Mic, Search, ChevronRight, FileText, CheckCircle2, Clock, MoreVertical, Menu } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
