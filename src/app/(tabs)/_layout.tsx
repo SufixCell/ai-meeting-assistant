@@ -40,8 +40,13 @@ function DesktopSidebar() {
     { name: 'Notebook', path: '/history', icon: BookOpen },
   ];
 
+  const webEvents = Platform.OS === 'web' ? {
+    onMouseLeave: () => setCollapsed(true),
+  } : {};
+
   return (
     <Animated.View 
+      {...(webEvents as any)}
       style={[
         styles.sidebar, 
         animatedSidebarStyle,
