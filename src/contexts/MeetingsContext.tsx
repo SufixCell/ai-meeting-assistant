@@ -61,7 +61,7 @@ export const MeetingsProvider = ({ children }: { children: ReactNode }) => {
     // Fetch only metadata to keep memory usage low
     const { data, error } = await supabase
       .from('meetings')
-      .select('id, title, created_at, summary, suggestions')
+      .select('id, title, created_at, summary')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
       

@@ -143,7 +143,6 @@ export default function SummaryScreen() {
               summary: result.summary,
               action_items: result.actionItems,
               key_decisions: result.keyDecisions,
-              suggestions: result.suggestions,
             })
             .select('id, title, created_at, summary')
             .single();
@@ -184,7 +183,6 @@ export default function SummaryScreen() {
               summary: result.summary,
               action_items: result.actionItems,
               key_decisions: result.keyDecisions,
-              suggestions: result.suggestions,
             })
             .select('id, title, created_at, summary')
             .single();
@@ -210,7 +208,6 @@ export default function SummaryScreen() {
             summary: result.summary,
             action_items: result.actionItems,
             key_decisions: result.keyDecisions,
-            suggestions: result.suggestions,
           })
           .select('id, title, created_at, summary')
           .single();
