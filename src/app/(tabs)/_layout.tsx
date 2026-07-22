@@ -9,6 +9,8 @@ import { BotSessionBanner } from '../../components/bot-session-banner';
 import { AnimatedPressable } from '../../components/animated-pressable';
 import React from 'react';
 
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
+
 function DesktopSidebar() {
   const { theme } = useTheme();
   const { openSidebar } = useSidebar();
@@ -16,17 +18,27 @@ function DesktopSidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
 
+  const widthAnim = useSharedValue(260);
+
+  React.useEffect(() => {
+    widthAnim.value = withSpring(collapsed ? 68 : 260, { damping: 22, stiffness: 220, mass: 0.8 });
+  }, [collapsed]);
+
+  const animatedSidebarStyle = useAnimatedStyle(() => ({
+    width: widthAnim.value,
+  }));
+
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Notebook', path: '/history', icon: BookOpen },
   ];
 
   return (
-    <View 
+    <Animated.View 
       style={[
         styles.sidebar, 
+        animatedSidebarStyle,
         { 
-          width: collapsed ? 68 : 260, 
           backgroundColor: theme.colors.background, 
           borderRightColor: theme.colors.border 
         }
@@ -37,7 +49,9 @@ function DesktopSidebar() {
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
         {!collapsed && (
-          <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
+          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+            <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
+          </Animated.View>
         )}
       </View>
       
@@ -59,12 +73,14 @@ function DesktopSidebar() {
             >
               <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textMuted} />
               {!collapsed && (
-                <Text style={[
-                  styles.sidebarLabel, 
-                  { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
-                ]}>
-                  {item.name}
-                </Text>
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+                  <Text style={[
+                    styles.sidebarLabel, 
+                    { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
+                  ]}>
+                    {item.name}
+                  </Text>
+                </Animated.View>
               )}
             </AnimatedPressable>
           );
@@ -78,13 +94,15 @@ function DesktopSidebar() {
         >
           <Settings size={20} color={theme.colors.textMuted} />
           {!collapsed && (
-            <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
-              Settings
-            </Text>
+            <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+              <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
+                Settings
+              </Text>
+            </Animated.View>
           )}
         </AnimatedPressable>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
