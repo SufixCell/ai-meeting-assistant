@@ -28,7 +28,7 @@ function DesktopSidebar() {
   const widthAnim = useSharedValue(260);
 
   React.useEffect(() => {
-    widthAnim.value = withSpring(collapsed ? 84 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
+    widthAnim.value = withSpring(collapsed ? 96 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
   }, [collapsed]);
 
   const animatedSidebarStyle = useAnimatedStyle(() => ({
@@ -47,10 +47,9 @@ function DesktopSidebar() {
         animatedSidebarStyle,
         { 
           backgroundColor: theme.colors.background, 
-          borderRightColor: collapsed ? 'transparent' : theme.colors.border,
-          borderRightWidth: collapsed ? 0 : 1,
+          borderRightWidth: 0,
+          borderRightColor: 'transparent',
           paddingHorizontal: 16,
-          overflow: 'hidden'
         }
       ]}
     >
