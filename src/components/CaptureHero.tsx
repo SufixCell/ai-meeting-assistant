@@ -69,6 +69,31 @@ export function CaptureHero({ onProcessingFinished, onJoinMeeting, onImport }: C
     }
   }, [displayTranscript]);
 
+  // Simulated AI Detections based on timer
+  const renderLiveAIBadges = () => {
+    if (timer < 4) return null;
+    return (
+      <View style={styles.aiBadgesContainer}>
+        <View style={styles.badgeRow}>
+          <Sparkles size={12} color={theme.colors.primary} style={{ marginRight: 6 }} />
+          <Text variant="label" style={{ color: theme.colors.primary, fontSize: 10 }}>AI noticed</Text>
+        </View>
+        
+        {timer >= 4 && (
+          <Animated.View entering={FadeIn.duration(400)} style={[styles.aiPill, { backgroundColor: theme.colors.purple + '15', borderColor: theme.colors.purple + '30' }]}>
+            <Text style={{ color: theme.colors.purple, fontSize: 12, fontWeight: '600' }}>Decision detected</Text>
+          </Animated.View>
+        )}
+        
+        {timer >= 8 && (
+          <Animated.View entering={FadeIn.duration(400)} style={[styles.aiPill, { backgroundColor: theme.colors.success + '15', borderColor: theme.colors.success + '30', marginTop: 8 }]}>
+            <Text style={{ color: theme.colors.success, fontSize: 12, fontWeight: '600' }}>Action Item: Send proposal tomorrow</Text>
+          </Animated.View>
+        )}
+      </View>
+    );
+  };
+
   if (state === 'idle') {
     return (
       <View style={[styles.stitchHeroCard, { backgroundColor: '#2e3447', borderColor: '#464555' }]}>
