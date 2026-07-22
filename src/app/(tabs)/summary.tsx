@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Share as RNShare, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
-import { ArrowLeft, Clock, MoreVertical, Sparkles, CheckCircle2, CheckSquare } from 'lucide-react-native';
+import { ArrowLeft, Clock, MoreVertical, Sparkles, CheckCircle2, CheckSquare, Lightbulb } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { generateMeetingSummary, type MeetingSummary } from '../../lib/openrouter';
@@ -109,6 +109,7 @@ export default function SummaryScreen() {
               summary: data.summary,
               actionItems: data.action_items || [],
               keyDecisions: data.key_decisions || [],
+              suggestions: data.suggestions || [],
             });
             setMeetingSource(data.source || data.platform || 'Recorded');
             setMeetingDate(new Date(data.created_at).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
@@ -127,6 +128,7 @@ export default function SummaryScreen() {
             summary: 'No speech was captured. Make sure your microphone is allowed and speak clearly.',
             actionItems: [],
             keyDecisions: [],
+            suggestions: [],
           };
           console.log('[Meeting] Object Created (Empty Recording)');
           setSummary(result);
@@ -141,6 +143,7 @@ export default function SummaryScreen() {
               summary: result.summary,
               action_items: result.actionItems,
               key_decisions: result.keyDecisions,
+              suggestions: result.suggestions,
             })
             .select('id, title, created_at, summary')
             .single();
@@ -166,6 +169,7 @@ export default function SummaryScreen() {
             summary: precomputedSummary,
             actionItems,
             keyDecisions: [],
+            suggestions: [],
           };
           setSummary(result);
           setMeetingSource('Bot');
@@ -180,6 +184,7 @@ export default function SummaryScreen() {
               summary: result.summary,
               action_items: result.actionItems,
               key_decisions: result.keyDecisions,
+              suggestions: result.suggestions,
             })
             .select('id, title, created_at, summary')
             .single();
@@ -205,6 +210,7 @@ export default function SummaryScreen() {
             summary: result.summary,
             action_items: result.actionItems,
             key_decisions: result.keyDecisions,
+            suggestions: result.suggestions,
           })
           .select('id, title, created_at, summary')
           .single();
@@ -242,6 +248,7 @@ export default function SummaryScreen() {
       transcript: rawTranscript,
       actionItems: summary.actionItems,
       keyDecisions: summary.keyDecisions,
+      suggestions: summary.suggestions,
       date: new Date().toISOString()
     });
   };
@@ -359,6 +366,21 @@ export default function SummaryScreen() {
             </View>
           )}
 
+          {/* AI Suggestions / Proactive Solutions */}
+          {summary?.suggestions && summary.suggestions.length > 0 && (
+            <View style={styles.editorialBlock}>
+              <View style={styles.blockHeader}>
+                 <Lightbulb size={18} color={theme.colors.warning} />
+                 <Text variant="h2" style={{ fontSize: 18 }}>Proactive Suggestions</Text>
+              </View>
+              {summary.suggestions.map((s, i) => (
+                <View key={i} style={[styles.suggestionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text variant="body" style={styles.proseText}>{s}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Transcript */}
           {rawTranscript && (
              <View style={[styles.editorialBlock, { marginTop: 40, paddingTop: 40, borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
@@ -463,4 +485,6 @@ const styles = StyleSheet.create({
   
   taskRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, paddingRight: 24 },
   taskCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, marginRight: 16, marginTop: 3, alignItems: 'center', justifyContent: 'center' },
+  
+  suggestionCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
 });

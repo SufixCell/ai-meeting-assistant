@@ -6,6 +6,7 @@ export interface MeetingSummary {
   summary: string;
   actionItems: string[];
   keyDecisions: string[];
+  suggestions: string[];
 }
 
 export async function generateMeetingSummary(transcript: string): Promise<MeetingSummary> {
@@ -15,6 +16,7 @@ export async function generateMeetingSummary(transcript: string): Promise<Meetin
       summary: 'No significant speech was captured.',
       actionItems: [],
       keyDecisions: [],
+      suggestions: [],
     };
   }
 
@@ -30,10 +32,11 @@ Respond with ONLY valid JSON in exactly this format (no markdown, no code blocks
   "title": "Short 2-5 word meeting title based on the content",
   "summary": "2-3 sentence executive summary of what was discussed",
   "actionItems": ["Action item 1", "Action item 2"],
-  "keyDecisions": ["Key decision 1", "Key decision 2"]
+  "keyDecisions": ["Key decision 1", "Key decision 2"],
+  "suggestions": ["Identify any problems discussed and suggest a proactive solution", "Suggest an improvement"]
 }
 
-If the transcript is very short or unclear, still return valid JSON with your best guess. The title should be specific to the content discussed.`;
+If the transcript is very short or unclear, still return valid JSON with your best guess. The title should be specific to the content discussed. If there are no obvious problems or solutions, return an empty array for suggestions.`;
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',

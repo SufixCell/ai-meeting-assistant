@@ -6,6 +6,11 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogIn, User, Lock, Sparkles } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
@@ -14,6 +19,17 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const { theme } = useTheme();
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const searchParams = new URLSearchParams(window.location.search);
+      const errorMsg = hashParams.get('error_description') || searchParams.get('error_description') || hashParams.get('error') || searchParams.get('error');
+      if (errorMsg) {
+        setError(decodeURIComponent(errorMsg.replace(/\+/g, ' ')));
+      }
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!identifier || !password) {
@@ -55,6 +71,63 @@ export default function LoginScreen() {
       setError(authError.message);
     } else {
       router.replace('/(tabs)');
+    }
+  };
+
+  const handleOAuthLogin = async (provider: 'google') => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      if (Platform.OS === 'web') {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: window.location.origin + '/login',
+          },
+        });
+        if (error) throw error;
+        return;
+      }
+
+      const redirectTo = makeRedirectUri();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+
+      const res = await WebBrowser.openAuthSessionAsync(
+        data?.url ?? '',
+        redirectTo
+      );
+
+      if (res.type === 'success') {
+        const { url } = res;
+        const { params, errorCode } = QueryParams.getQueryParams(url);
+
+        if (errorCode) throw new Error(errorCode);
+        const { access_token, refresh_token } = params;
+
+        if (access_token && refresh_token) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+          if (sessionError) throw sessionError;
+          
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'An error occurred during sign in');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -124,8 +197,8 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.ghostButton, { borderColor: theme.colors.border }]}>
-            <Text style={[styles.ghostButtonText, { color: theme.colors.text }]}>Continue with Google (Coming Soon)</Text>
+          <TouchableOpacity onPress={() => handleOAuthLogin('google')} disabled={loading} style={[styles.ghostButton, { borderColor: theme.colors.border }]}>
+            <Text style={[styles.ghostButtonText, { color: theme.colors.text }]}>Continue with Google</Text>
           </TouchableOpacity>
         </View>
 

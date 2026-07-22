@@ -10,6 +10,7 @@ export interface MeetingMetadata {
   source?: string;
   platform?: string;
   summary?: string; // Preview
+  suggestions?: string[];
 }
 
 interface MeetingsContextType {
@@ -60,7 +61,7 @@ export const MeetingsProvider = ({ children }: { children: ReactNode }) => {
     // Fetch only metadata to keep memory usage low
     const { data, error } = await supabase
       .from('meetings')
-      .select('id, title, created_at, summary')
+      .select('id, title, created_at, summary, suggestions')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
       

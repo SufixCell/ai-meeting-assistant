@@ -36,16 +36,24 @@ returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  gen_username text;
 begin
+  gen_username := coalesce(
+    new.raw_user_meta_data->>'username',
+    split_part(new.email, '@', 1) || '_' || substr(md5(random()::text), 1, 4)
+  );
+
   insert into public.profiles (id, username, email, phone, full_name, avatar_url)
   values (
     new.id,
-    new.raw_user_meta_data->>'username',
+    gen_username,
     new.email,
     new.phone,
-    new.raw_user_meta_data->>'full_name',
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
     new.raw_user_meta_data->>'avatar_url'
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;

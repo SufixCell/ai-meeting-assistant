@@ -5,6 +5,7 @@ export interface ExportData {
   transcript: string;
   actionItems?: string[];
   keyDecisions?: string[];
+  suggestions?: string[];
   date?: string;
 }
 
@@ -32,6 +33,12 @@ export const exportTranscript = async (title: string, data: ExportData | string)
     if (data.actionItems && data.actionItems.length > 0) {
       fullText += `## Action Items\n`;
       data.actionItems.forEach(a => fullText += `- [ ] ${a}\n`);
+      fullText += `\n`;
+    }
+    
+    if (data.suggestions && data.suggestions.length > 0) {
+      fullText += `## Proactive Suggestions\n`;
+      data.suggestions.forEach(s => fullText += `- ${s}\n`);
       fullText += `\n`;
     }
     
