@@ -2,7 +2,7 @@ import { Tabs, usePathname, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../theme';
-import { Home, Settings, BookOpen } from 'lucide-react-native';
+import { Home, Settings, BookOpen, Menu } from 'lucide-react-native';
 import { FloatingNav } from '../../components/ui/floating-nav';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { BotSessionBanner } from '../../components/bot-session-banner';
@@ -23,7 +23,9 @@ function DesktopSidebar() {
   return (
     <View style={[styles.sidebar, { backgroundColor: theme.colors.background, borderRightColor: theme.colors.border }]}>
       <View style={styles.sidebarHeader}>
-        <View style={[styles.logo, { backgroundColor: theme.colors.primary }]} />
+        <AnimatedPressable onPress={openSidebar} style={styles.menuIconBtn}>
+          <Menu size={20} color={theme.colors.text} />
+        </AnimatedPressable>
         <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
       </View>
       
@@ -111,6 +113,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     paddingHorizontal: 12,
     gap: 12,
+  },
+  menuIconBtn: {
+    padding: 6,
+    borderRadius: 8,
   },
   logo: {
     width: 24,

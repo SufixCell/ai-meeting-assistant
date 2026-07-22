@@ -197,37 +197,37 @@ export default function HomeScreen() {
         key={meeting.id}
         scaleTo={0.98} 
         onPress={() => router.push({ pathname: '/(tabs)/summary', params: { meetingId: meeting.id } })}
-        style={[styles.stitchMeetingCard, { backgroundColor: '#151b2d', borderColor: '#464555' }]}
+        style={[styles.stitchMeetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       >
         <View style={styles.stitchCardHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#dce1fb' }}>{title}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{title}</Text>
             <View style={styles.stitchMetaRow}>
-              <Text style={{ fontSize: 12, color: '#c7c4d8', fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>{dateStr}</Text>
-              <Text style={{ fontSize: 12, color: '#c7c4d8' }}>•</Text>
-              <Text style={{ fontSize: 12, color: '#c7c4d8', fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>28m</Text>
-              <View style={[styles.stitchBadge, { backgroundColor: '#3f465c' }]}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#adb4ce', letterSpacing: 0.5 }}>PROCESSED</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted, fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>{dateStr}</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>•</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted, fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>28m</Text>
+              <View style={[styles.stitchBadge, { backgroundColor: theme.colors.surfaceHighlight }]}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.colors.primary, letterSpacing: 0.5 }}>PROCESSED</Text>
               </View>
             </View>
           </View>
 
           {/* Participant Avatar Stack */}
           <View style={styles.avatarStack}>
-            <View style={[styles.stackAvatar, { backgroundColor: '#4f46e5' }]}>
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>JD</Text>
+            <View style={[styles.stackAvatar, { backgroundColor: theme.colors.primary, borderColor: theme.colors.surface }]}>
+              <Text style={{ color: theme.colors.onPrimary, fontSize: 10, fontWeight: '700' }}>JD</Text>
             </View>
-            <View style={[styles.stackAvatar, { backgroundColor: '#a44100', marginLeft: -8 }]}>
+            <View style={[styles.stackAvatar, { backgroundColor: '#a44100', marginLeft: -8, borderColor: theme.colors.surface }]}>
               <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>SK</Text>
             </View>
-            <View style={[styles.stackAvatar, { backgroundColor: '#3f465c', marginLeft: -8 }]}>
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>+2</Text>
+            <View style={[styles.stackAvatar, { backgroundColor: theme.colors.surfaceHighlight, marginLeft: -8, borderColor: theme.colors.surface }]}>
+              <Text style={{ color: theme.colors.textMuted, fontSize: 10, fontWeight: '700' }}>+2</Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.stitchQuoteBorder, { borderLeftColor: '#4f46e5' }]}>
-          <Text numberOfLines={2} style={{ fontSize: 13, color: '#c7c4d8', fontStyle: 'italic', lineHeight: 18 }}>
+        <View style={[styles.stitchQuoteBorder, { borderLeftColor: theme.colors.primary }]}>
+          <Text numberOfLines={2} style={{ fontSize: 13, color: theme.colors.textMuted, fontStyle: 'italic', lineHeight: 18 }}>
             "{summarySnippet}"
           </Text>
         </View>
@@ -240,42 +240,48 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: '#0c1324' }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <Animated.View style={[{ flex: 1 }, animatedPageStyle]}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
             {/* Top Bar Header */}
-            <View style={[styles.topAppBar, { borderBottomColor: '#464555' }]}>
-              <TouchableOpacity onPress={openSidebar} activeOpacity={0.8} style={styles.brandGroup}>
-                <View style={[styles.avatarButton, { backgroundColor: '#4f46e5' }]}>
-                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>{initial}</Text>
-                </View>
-                <Text style={{ color: '#c3c0ff', fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
-              </TouchableOpacity>
+            <View style={[styles.topAppBar, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.brandGroup}>
+                <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={styles.menuTriggerBtn}>
+                  <Menu size={22} color={theme.colors.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={openSidebar} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
+                    <Text style={{ color: theme.colors.onPrimary, fontWeight: '700', fontSize: 16 }}>{initial}</Text>
+                  </View>
+                  <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
+                </TouchableOpacity>
+              </View>
               
               <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
-                <Search size={20} color="#c7c4d8" />
+                <Search size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {/* Hero Greeting Section */}
             <View style={styles.heroSection}>
-              <Text style={{ fontSize: 24, fontWeight: '700', color: '#dce1fb', letterSpacing: -0.5 }}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: theme.colors.text, letterSpacing: -0.5 }}>
                 {greeting()}, {displayName}
               </Text>
-              <Text style={{ fontSize: 14, color: '#c7c4d8', marginTop: 4 }}>
+              <Text style={{ fontSize: 14, color: theme.colors.textMuted, marginTop: 4 }}>
                 Ready to capture your next meeting?
               </Text>
               
               <View style={styles.heroBadgeRow}>
-                <View style={[styles.totalPill, { backgroundColor: '#191f31', borderColor: '#464555' }]}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#c3c0ff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <View style={[styles.totalPill, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: theme.colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     📊 {meetings.length || 32} TOTAL MEETINGS
                   </Text>
                 </View>
-                <Text style={{ color: '#464555' }}>•</Text>
-                <Text style={{ fontSize: 12, color: '#c7c4d8' }}>
+                <Text style={{ color: theme.colors.border }}>•</Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>
                   Last recorded {activeMeeting ? new Date(activeMeeting.created_at).toLocaleDateString() : 'yesterday'}
                 </Text>
               </View>
@@ -283,8 +289,8 @@ export default function HomeScreen() {
 
             {/* Search Bar */}
             <View style={styles.searchSection}>
-              <View style={[styles.stitchSearchWrap, { backgroundColor: '#191f31', borderColor: '#464555' }]}>
-                <Search size={18} color="#c7c4d8" style={{ marginRight: 12 }} />
+              <View style={[styles.stitchSearchWrap, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
+                <Search size={18} color={theme.colors.textMuted} style={{ marginRight: 12 }} />
                 <SearchBar 
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -304,9 +310,9 @@ export default function HomeScreen() {
             {/* Recent Meetings */}
             <View style={styles.recentSection}>
               <View style={styles.recentHeader}>
-                <Text style={{ fontSize: 20, fontWeight: '600', color: '#dce1fb' }}>Recent Meetings</Text>
+                <Text style={{ fontSize: 20, fontWeight: '600', color: theme.colors.text }}>Recent Meetings</Text>
                 <TouchableOpacity onPress={() => router.push('/history')}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#c3c0ff', letterSpacing: 0.5 }}>VIEW ALL</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.primary, letterSpacing: 0.5 }}>VIEW ALL</Text>
                 </TouchableOpacity>
               </View>
 
@@ -314,8 +320,8 @@ export default function HomeScreen() {
                 {filteredMeetings.length > 0 ? (
                   filteredMeetings.slice(0, 5).map(renderRecentMeetingCard)
                 ) : (
-                  <View style={[styles.stitchMeetingCard, { backgroundColor: '#151b2d', borderColor: '#464555', padding: 24, alignItems: 'center' }]}>
-                    <Text style={{ color: '#c7c4d8', fontSize: 14 }}>No meetings found matching your search.</Text>
+                  <View style={[styles.stitchMeetingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, padding: 24, alignItems: 'center' }]}>
+                    <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>No meetings found matching your search.</Text>
                   </View>
                 )}
               </View>
@@ -412,6 +418,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  menuTriggerBtn: {
+    padding: 6,
+    borderRadius: 8,
   },
   avatarButton: {
     width: 32,
