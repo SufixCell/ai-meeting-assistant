@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
