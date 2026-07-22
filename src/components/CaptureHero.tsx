@@ -11,9 +11,11 @@ import { AudioVisualizer } from './audio-visualizer';
 
 interface CaptureHeroProps {
   onProcessingFinished?: (transcript: string) => void;
+  onJoinMeeting?: () => void;
+  onImport?: () => void;
 }
 
-export function CaptureHero({ onProcessingFinished }: CaptureHeroProps) {
+export function CaptureHero({ onProcessingFinished, onJoinMeeting, onImport }: CaptureHeroProps) {
   const { theme } = useTheme();
   
   const { 
@@ -67,46 +69,43 @@ export function CaptureHero({ onProcessingFinished }: CaptureHeroProps) {
     }
   }, [displayTranscript]);
 
-  // Simulated AI Detections based on timer
-  const renderLiveAIBadges = () => {
-    if (timer < 4) return null;
-    return (
-      <View style={styles.aiBadgesContainer}>
-        <View style={styles.badgeRow}>
-          <Sparkles size={12} color={theme.colors.primary} style={{ marginRight: 6 }} />
-          <Text variant="label" style={{ color: theme.colors.primary, fontSize: 10 }}>AI noticed</Text>
-        </View>
-        
-        {timer >= 4 && (
-          <Animated.View entering={FadeIn.duration(400)} style={[styles.aiPill, { backgroundColor: theme.colors.purple + '15', borderColor: theme.colors.purple + '30' }]}>
-            <Text style={{ color: theme.colors.purple, fontSize: 12, fontWeight: '600' }}>Decision detected</Text>
-          </Animated.View>
-        )}
-        
-        {timer >= 8 && (
-          <Animated.View entering={FadeIn.duration(400)} style={[styles.aiPill, { backgroundColor: theme.colors.success + '15', borderColor: theme.colors.success + '30', marginTop: 8 }]}>
-            <Text style={{ color: theme.colors.success, fontSize: 12, fontWeight: '600' }}>Action Item: Send proposal tomorrow</Text>
-          </Animated.View>
-        )}
-      </View>
-    );
-  };
-
   if (state === 'idle') {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={startRecording} style={styles.heroWrapper}>
-        <View style={[styles.heroCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={[styles.heroIconContainer, { backgroundColor: `${theme.colors.primary}10`, borderColor: `${theme.colors.primary}30` }]}>
-            <Mic size={28} color={theme.colors.primary} />
-          </View>
-          <View style={styles.heroTextContent}>
-            <Text variant="h2" style={{ color: theme.colors.text, fontWeight: '600' }}>Capture Conversation</Text>
-            <Text variant="body" style={{ color: theme.colors.textMuted, marginTop: 2 }}>
-              Start recording with AI transcription and live insights.
+      <View style={[styles.stitchHeroCard, { backgroundColor: '#2e3447', borderColor: '#464555' }]}>
+        <View style={styles.stitchCardContent}>
+          <TouchableOpacity activeOpacity={0.85} onPress={startRecording} style={styles.stitchMicBtn}>
+            <Mic size={32} color="#FFF" />
+          </TouchableOpacity>
+          
+          <View style={styles.stitchTextGroup}>
+            <Text variant="h2" style={{ color: '#dce1fb', fontWeight: '600', textAlign: 'center', fontSize: 22 }}>
+              AI-powered real-time transcription
+            </Text>
+            <Text variant="body" style={{ color: '#c7c4d8', marginTop: 4, textAlign: 'center', fontSize: 14 }}>
+              Ready to capture every insight from your conversation.
             </Text>
           </View>
+
+          <View style={styles.stitchActionRow}>
+            <TouchableOpacity activeOpacity={0.8} onPress={startRecording} style={styles.stitchStartBtn}>
+              <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 15 }}>Start Recording</Text>
+            </TouchableOpacity>
+
+            <View style={styles.stitchSecondaryRow}>
+              {onJoinMeeting && (
+                <TouchableOpacity activeOpacity={0.8} onPress={onJoinMeeting} style={styles.stitchSecondaryBtn}>
+                  <Text style={{ color: '#dce1fb', fontSize: 14, fontWeight: '500' }}>+ Join Meeting</Text>
+                </TouchableOpacity>
+              )}
+              {onImport && (
+                <TouchableOpacity activeOpacity={0.8} onPress={onImport} style={styles.stitchSecondaryBtn}>
+                  <Text style={{ color: '#dce1fb', fontSize: 14, fontWeight: '500' }}>↑ Import</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
@@ -321,5 +320,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 99,
-  }
+  },
+
+  stitchHeroCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 32,
+    alignItems: 'center',
+    justify: 'center',
+    marginVertical: 12,
+  },
+  stitchCardContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  stitchMicBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#4f46e5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  stitchTextGroup: {
+    alignItems: 'center',
+    marginBottom: 24,
+    maxWidth: 500,
+  },
+  stitchActionRow: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  stitchStartBtn: {
+    backgroundColor: '#4f46e5',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 99,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  stitchSecondaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  stitchSecondaryBtn: {
+    borderWidth: 1,
+    borderColor: '#464555',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 99,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
 });

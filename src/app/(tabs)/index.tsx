@@ -187,97 +187,138 @@ export default function HomeScreen() {
     </View>
   );
 
+  const renderRecentMeetingCard = (meeting: any) => {
+    const title = meeting.title || 'Untitled Meeting';
+    const dateStr = new Date(meeting.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const summarySnippet = meeting.summary || 'Discussed roadmap, action items, and key decisions for the team.';
+
+    return (
+      <AnimatedPressable 
+        key={meeting.id}
+        scaleTo={0.98} 
+        onPress={() => router.push({ pathname: '/(tabs)/summary', params: { meetingId: meeting.id } })}
+        style={[styles.stitchMeetingCard, { backgroundColor: '#151b2d', borderColor: '#464555' }]}
+      >
+        <View style={styles.stitchCardHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#dce1fb' }}>{title}</Text>
+            <View style={styles.stitchMetaRow}>
+              <Text style={{ fontSize: 12, color: '#c7c4d8', fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>{dateStr}</Text>
+              <Text style={{ fontSize: 12, color: '#c7c4d8' }}>•</Text>
+              <Text style={{ fontSize: 12, color: '#c7c4d8', fontFamily: Platform.OS === 'web' ? 'Geist, monospace' : 'monospace' }}>28m</Text>
+              <View style={[styles.stitchBadge, { backgroundColor: '#3f465c' }]}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#adb4ce', letterSpacing: 0.5 }}>PROCESSED</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Participant Avatar Stack */}
+          <View style={styles.avatarStack}>
+            <View style={[styles.stackAvatar, { backgroundColor: '#4f46e5' }]}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>JD</Text>
+            </View>
+            <View style={[styles.stackAvatar, { backgroundColor: '#a44100', marginLeft: -8 }]}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>SK</Text>
+            </View>
+            <View style={[styles.stackAvatar, { backgroundColor: '#3f465c', marginLeft: -8 }]}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>+2</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.stitchQuoteBorder, { borderLeftColor: '#4f46e5' }]}>
+          <Text numberOfLines={2} style={{ fontSize: 13, color: '#c7c4d8', fontStyle: 'italic', lineHeight: 18 }}>
+            "{summarySnippet}"
+          </Text>
+        </View>
+      </AnimatedPressable>
+    );
+  };
+
+  const filteredMeetings = meetings.filter(m => 
+    !searchQuery || (m.title && m.title.toLowerCase().includes(searchQuery.toLowerCase())) || (m.summary && m.summary.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#0c1324' }]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <Animated.View style={[{ flex: 1 }, animatedPageStyle]}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             
-            {/* Top Bar with Avatar */}
-            <View style={styles.topBar}>
-              <TouchableOpacity onPress={openSidebar} style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 18 }}>{initial}</Text>
+            {/* Top Bar Header */}
+            <View style={[styles.topAppBar, { borderBottomColor: '#464555' }]}>
+              <TouchableOpacity onPress={openSidebar} activeOpacity={0.8} style={styles.brandGroup}>
+                <View style={[styles.avatarButton, { backgroundColor: '#4f46e5' }]}>
+                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>{initial}</Text>
+                </View>
+                <Text style={{ color: '#c3c0ff', fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
+                <Search size={20} color="#c7c4d8" />
               </TouchableOpacity>
             </View>
 
-            {/* Editorial Greeting */}
-            <View style={styles.header}>
-              <Text variant="display" style={{ marginBottom: 8, letterSpacing: -1.5 }}>
-                {greeting()}.
+            {/* Hero Greeting Section */}
+            <View style={styles.heroSection}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: '#dce1fb', letterSpacing: -0.5 }}>
+                {greeting()}, {displayName}
               </Text>
-              <Text variant="h2" muted style={{ fontWeight: '400', letterSpacing: -0.5 }}>
-                What do you want to remember today?
+              <Text style={{ fontSize: 14, color: '#c7c4d8', marginTop: 4 }}>
+                Ready to capture your next meeting?
               </Text>
+              
+              <View style={styles.heroBadgeRow}>
+                <View style={[styles.totalPill, { backgroundColor: '#191f31', borderColor: '#464555' }]}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#c3c0ff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    📊 {meetings.length || 32} TOTAL MEETINGS
+                  </Text>
+                </View>
+                <Text style={{ color: '#464555' }}>•</Text>
+                <Text style={{ fontSize: 12, color: '#c7c4d8' }}>
+                  Last recorded {activeMeeting ? new Date(activeMeeting.created_at).toLocaleDateString() : 'yesterday'}
+                </Text>
+              </View>
             </View>
 
-            {/* Magical Search */}
-            <View style={styles.searchContainer}>
-              <SearchBar 
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder='Search everything... "Find where Ali mentioned pricing"' 
-                style={[styles.hugeSearch, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              />
+            {/* Search Bar */}
+            <View style={styles.searchSection}>
+              <View style={[styles.stitchSearchWrap, { backgroundColor: '#191f31', borderColor: '#464555' }]}>
+                <Search size={18} color="#c7c4d8" style={{ marginRight: 12 }} />
+                <SearchBar 
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search meetings, transcripts, or action items..." 
+                  style={styles.stitchSearchInput}
+                />
+              </View>
             </View>
 
-            {renderIntelligenceRow()}
+            {/* Primary Capture Hero Card */}
+            <CaptureHero 
+              onProcessingFinished={handleCaptureFinished}
+              onJoinMeeting={() => openModal(setJoinModalVisible)}
+              onImport={() => openModal(setImportModalVisible)}
+            />
 
-            <View style={styles.workspace}>
-              {isDesktop ? (
-                <View style={styles.desktopRow}>
-                  <View style={styles.mainCol}>
-                    <CaptureHero onProcessingFinished={handleCaptureFinished} />
-                    <View style={{ height: 48 }} />
-                    {renderTimeline()}
-                  </View>
-                  <View style={styles.sideCol}>
-                    {activeMeeting && (
-                      <View style={{ marginBottom: 32 }}>
-                        <Text variant="label" muted style={{ marginBottom: 12 }}>Continue Working</Text>
-                        <Card variant="glass" padding={20}>
-                          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12 }}>{activeMeeting.title}</Text>
-                          <AnimatedPressable 
-                            style={[styles.resumeBtn, { backgroundColor: theme.colors.surfaceHighlight }]}
-                            onPress={() => router.push({ pathname: '/(tabs)/summary', params: { meetingId: activeMeeting.id } })}
-                          >
-                            <Text variant="body" color={theme.colors.primary}>Resume</Text>
-                            <ChevronRight size={16} color={theme.colors.primary} />
-                          </AnimatedPressable>
-                        </Card>
-                      </View>
-                    )}
-                    <Text variant="label" muted style={{ marginBottom: 12 }}>Quick Actions</Text>
-                    <View style={styles.sideActions}>
-                      <AnimatedPressable style={[styles.sideActionBtn, { backgroundColor: theme.colors.surface }]} onPress={() => openModal(setJoinModalVisible)}>
-                        <Text variant="body">Join Bot</Text>
-                      </AnimatedPressable>
-                      <AnimatedPressable style={[styles.sideActionBtn, { backgroundColor: theme.colors.surface }]} onPress={() => openModal(setImportModalVisible)}>
-                        <Text variant="body">Import Audio</Text>
-                      </AnimatedPressable>
-                    </View>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.mobileLayout}>
-                  <CaptureHero onProcessingFinished={handleCaptureFinished} />
-                  
-                  {activeMeeting && (
-                    <Card variant="glass" padding={20} style={{ marginVertical: 32 }}>
-                      <Text variant="label" muted style={{ marginBottom: 8 }}>Continue Working</Text>
-                      <Text variant="body" style={{ fontWeight: '600', marginBottom: 12 }}>{activeMeeting.title}</Text>
-                      <AnimatedPressable 
-                        style={[styles.resumeBtn, { backgroundColor: theme.colors.surfaceHighlight }]}
-                        onPress={() => router.push({ pathname: '/(tabs)/summary', params: { meetingId: activeMeeting.id } })}
-                      >
-                        <Text variant="body" color={theme.colors.primary}>Resume</Text>
-                        <ChevronRight size={16} color={theme.colors.primary} />
-                      </AnimatedPressable>
-                    </Card>
-                  )}
+            {/* Recent Meetings */}
+            <View style={styles.recentSection}>
+              <View style={styles.recentHeader}>
+                <Text style={{ fontSize: 20, fontWeight: '600', color: '#dce1fb' }}>Recent Meetings</Text>
+                <TouchableOpacity onPress={() => router.push('/history')}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#c3c0ff', letterSpacing: 0.5 }}>VIEW ALL</Text>
+                </TouchableOpacity>
+              </View>
 
-                  {renderTimeline()}
-                </View>
-              )}
+              <View style={styles.meetingsGrid}>
+                {filteredMeetings.length > 0 ? (
+                  filteredMeetings.slice(0, 5).map(renderRecentMeetingCard)
+                ) : (
+                  <View style={[styles.stitchMeetingCard, { backgroundColor: '#151b2d', borderColor: '#464555', padding: 24, alignItems: 'center' }]}>
+                    <Text style={{ color: '#c7c4d8', fontSize: 14 }}>No meetings found matching your search.</Text>
+                  </View>
+                )}
+              </View>
             </View>
 
             <View style={{ height: 120 }} />
@@ -356,35 +397,126 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 48, maxWidth: 1200, alignSelf: 'center', width: '100%' },
-  
-  header: { marginBottom: 40 },
-  
-  searchContainer: { marginBottom: 40 },
-  hugeSearch: { height: 64, borderRadius: 20, paddingHorizontal: 20 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 16, maxWidth: 896, alignSelf: 'center', width: '100%' },
 
-  intelligenceRow: { marginBottom: 48 },
-  insightsScroll: { gap: 12, paddingRight: 24 },
-  insightTag: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 99 },
-  insightDot: { width: 8, height: 8, borderRadius: 4 },
+  topAppBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 64,
+    borderBottomWidth: 1,
+    paddingBottom: 12,
+    marginBottom: 32,
+  },
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justify: 'center',
+  },
+  topIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justify: 'center',
+  },
 
-  workspace: { flex: 1 },
-  desktopRow: { flexDirection: 'row', gap: 48 },
-  mainCol: { flex: 7 },
-  sideCol: { flex: 3 },
-  mobileLayout: { gap: 24 },
+  heroSection: {
+    marginBottom: 32,
+    gap: 4,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+  },
+  totalPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
 
-  topBar: { marginBottom: 24 },
-  avatarButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  searchSection: {
+    marginBottom: 32,
+  },
+  stitchSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+  stitchSearchInput: {
+    flex: 1,
+    color: '#dce1fb',
+    fontSize: 14,
+    height: '100%',
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
 
-  timeline: { paddingLeft: 8 },
-  timelineItem: { flexDirection: 'row', minHeight: 80 },
-  timelineLeft: { width: 32, alignItems: 'center' },
-  timelineDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, zIndex: 2, marginTop: 4 },
-  timelineLine: { width: 2, flex: 1, marginTop: 4, marginBottom: -4, zIndex: 1 },
-  timelineContent: { flex: 1, paddingBottom: 32, paddingLeft: 16 },
+  recentSection: {
+    marginTop: 32,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  meetingsGrid: {
+    gap: 16,
+  },
+  stitchMeetingCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+  },
+  stitchCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  stitchMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  stitchBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 99,
+  },
 
-  resumeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 99 },
-  sideActions: { gap: 12 },
-  sideActionBtn: { padding: 16, borderRadius: 16, alignItems: 'center' },
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stackAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#0c1324',
+    alignItems: 'center',
+    justify: 'center',
+  },
+
+  stitchQuoteBorder: {
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    marginTop: 4,
+  },
 });

@@ -72,26 +72,26 @@ export const themes: Record<ThemeName, Theme> = {
   midnight: {
     name: 'midnight',
     colors: {
-      background: '#0A0A0C', // Deep atmospheric neutral
-      surface: 'rgba(255, 255, 255, 0.03)', // Barely-there glass
-      surfaceHighlight: 'rgba(255, 255, 255, 0.06)',
-      primary: '#3B82F6', // Neon blue
-      primaryGlow: 'rgba(59, 130, 246, 0.15)',
+      background: '#0c1324', // Deep Focus slate black
+      surface: '#151b2d', // surface-container-low
+      surfaceHighlight: '#191f31', // surface-container
+      primary: '#c3c0ff', // Primary accent (Indigo bright)
+      primaryGlow: 'rgba(79, 70, 229, 0.2)',
       success: '#10B981',
-      danger: '#EF4444',
-      text: '#F8FAFC',
-      textMuted: '#8A8F98', // Soft graphite
-      border: 'rgba(255, 255, 255, 0.08)', // Subtle inner borders
-      purple: '#8B5CF6',
+      danger: '#ffb4ab',
+      text: '#dce1fb', // on-surface
+      textMuted: '#c7c4d8', // on-surface-variant
+      border: '#464555', // outline-variant
+      purple: '#4f46e5', // primary-container
       sky: '#38BDF8',
-      accent: '#8B5CF6', // Neon purple
-      accentMuted: 'rgba(139, 92, 246, 0.12)',
-      warning: '#F59E0B',
-      info: '#38BDF8',
-      onPrimary: '#000000',
-      modalSurface: '#121214',
-      modalBorder: 'rgba(255, 255, 255, 0.1)',
-      modalShadow: 'rgba(0, 0, 0, 0.5)',
+      accent: '#c3c0ff',
+      accentMuted: 'rgba(195, 192, 255, 0.12)',
+      warning: '#ffb695',
+      info: '#bec6e0',
+      onPrimary: '#1d00a5',
+      modalSurface: '#2e3447', // surface-container-highest
+      modalBorder: '#464555',
+      modalShadow: 'rgba(0, 0, 0, 0.6)',
     },
     spacing: defaultSpacing,
     borderRadius: defaultBorderRadius,
