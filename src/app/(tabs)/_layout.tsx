@@ -21,7 +21,7 @@ function DesktopSidebar() {
   const widthAnim = useSharedValue(260);
 
   React.useEffect(() => {
-    widthAnim.value = withSpring(collapsed ? 68 : 260, { damping: 22, stiffness: 220, mass: 0.8 });
+    widthAnim.value = withSpring(collapsed ? 52 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
   }, [collapsed]);
 
   const animatedSidebarStyle = useAnimatedStyle(() => ({
@@ -40,68 +40,64 @@ function DesktopSidebar() {
         animatedSidebarStyle,
         { 
           backgroundColor: theme.colors.background, 
-          borderRightColor: theme.colors.border 
+          borderRightColor: collapsed ? 'transparent' : theme.colors.border,
+          borderRightWidth: collapsed ? 0 : 1,
+          paddingHorizontal: collapsed ? 6 : 16,
+          overflow: 'hidden'
         }
       ]}
     >
-      <View style={[styles.sidebarHeader, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}>
+      <View style={[styles.sidebarHeader, collapsed && { justifyContent: 'center', paddingHorizontal: 0, marginBottom: 16 }]}>
         <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
         {!collapsed && (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(100)}>
             <Text style={[styles.brandName, { color: theme.colors.text }]}>Intelligence</Text>
           </Animated.View>
         )}
       </View>
       
-      <View style={styles.navContainer}>
-        {navItems.map(item => {
-          const isActive = pathname === item.path || (item.path === '/' && pathname === '/index');
-          const Icon = item.icon;
+      {!collapsed && (
+        <Animated.View entering={FadeIn.duration(250).delay(80)} exiting={FadeOut.duration(100)} style={styles.navContainer}>
+          {navItems.map(item => {
+            const isActive = pathname === item.path || (item.path === '/' && pathname === '/index');
+            const Icon = item.icon;
+            
+            return (
+              <AnimatedPressable 
+                key={item.path}
+                onPress={() => router.push(item.path as any)}
+                scaleTo={0.96}
+                style={[
+                  styles.sidebarItem, 
+                  isActive && { backgroundColor: theme.colors.surfaceHighlight }
+                ]}
+              >
+                <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textMuted} />
+                <Text style={[
+                  styles.sidebarLabel, 
+                  { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
+                ]}>
+                  {item.name}
+                </Text>
+              </AnimatedPressable>
+            );
+          })}
           
-          return (
-            <AnimatedPressable 
-              key={item.path}
-              onPress={() => router.push(item.path as any)}
-              scaleTo={0.96}
-              style={[
-                styles.sidebarItem, 
-                collapsed && { justifyContent: 'center', paddingHorizontal: 0 },
-                isActive && { backgroundColor: theme.colors.surfaceHighlight }
-              ]}
-            >
-              <Icon size={20} color={isActive ? theme.colors.primary : theme.colors.textMuted} />
-              {!collapsed && (
-                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-                  <Text style={[
-                    styles.sidebarLabel, 
-                    { color: isActive ? theme.colors.text : theme.colors.textMuted, fontWeight: isActive ? '600' : '500' }
-                  ]}>
-                    {item.name}
-                  </Text>
-                </Animated.View>
-              )}
-            </AnimatedPressable>
-          );
-        })}
-        
-        {/* Settings triggers Premium Sidebar Drawer */}
-        <AnimatedPressable 
-          onPress={openSidebar}
-          scaleTo={0.96}
-          style={[styles.sidebarItem, collapsed && { justifyContent: 'center', paddingHorizontal: 0 }]}
-        >
-          <Settings size={20} color={theme.colors.textMuted} />
-          {!collapsed && (
-            <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-              <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
-                Settings
-              </Text>
-            </Animated.View>
-          )}
-        </AnimatedPressable>
-      </View>
+          {/* Settings triggers Premium Sidebar Drawer */}
+          <AnimatedPressable 
+            onPress={openSidebar}
+            scaleTo={0.96}
+            style={styles.sidebarItem}
+          >
+            <Settings size={20} color={theme.colors.textMuted} />
+            <Text style={[styles.sidebarLabel, { color: theme.colors.textMuted, fontWeight: '500' }]}>
+              Settings
+            </Text>
+          </AnimatedPressable>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
