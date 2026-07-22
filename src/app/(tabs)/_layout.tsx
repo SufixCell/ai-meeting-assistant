@@ -28,7 +28,7 @@ function DesktopSidebar() {
   const widthAnim = useSharedValue(260);
 
   React.useEffect(() => {
-    widthAnim.value = withSpring(collapsed ? 52 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
+    widthAnim.value = withSpring(collapsed ? 84 : 260, { damping: 24, stiffness: 240, mass: 0.8 });
   }, [collapsed]);
 
   const animatedSidebarStyle = useAnimatedStyle(() => ({
@@ -49,12 +49,12 @@ function DesktopSidebar() {
           backgroundColor: theme.colors.background, 
           borderRightColor: collapsed ? 'transparent' : theme.colors.border,
           borderRightWidth: collapsed ? 0 : 1,
-          paddingHorizontal: collapsed ? 6 : 16,
+          paddingHorizontal: 16,
           overflow: 'hidden'
         }
       ]}
     >
-      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 8 }, collapsed && { justifyContent: 'center', paddingHorizontal: 0, marginBottom: 16 }]}>
+      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
         <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
