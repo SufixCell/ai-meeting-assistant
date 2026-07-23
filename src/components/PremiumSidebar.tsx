@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { AnimatedPressable } from './animated-pressable';
 
 import { useMeetings } from '../contexts/MeetingsContext';
+import { TrashModal } from './TrashModal';
 
 const { width, height } = Dimensions.get('window');
 const SIDEBAR_WIDTH = Math.min(width * 0.85, 360);
@@ -23,7 +24,8 @@ export function PremiumSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { meetings } = useMeetings();
+  const { meetings, trashedMeetings } = useMeetings();
+  const [trashModalVisible, setTrashModalVisible] = React.useState(false);
 
   const displayName = user?.user_metadata?.full_name || 
                       user?.user_metadata?.name || 
@@ -156,7 +158,13 @@ export function PremiumSidebar() {
             <NavItem icon={Home} label="Home" active={pathname === '/' || pathname === '/index'} onPress={() => handleNav('/')} theme={theme} />
             <NavItem icon={BookOpen} label="Notebook" active={pathname === '/history'} onPress={() => handleNav('/history')} theme={theme} />
             <NavItem icon={Search} label="Quick Search" active={false} onPress={() => handleNav('/history')} theme={theme} />
-            <NavItem icon={Trash2} label="Trash" active={false} onPress={() => handleNav('/history')} theme={theme} />
+            <NavItem 
+              icon={Trash2} 
+              label={`Trash${trashedMeetings.length > 0 ? ` (${trashedMeetings.length})` : ''}`} 
+              active={false} 
+              onPress={() => { closeSidebar(); setTrashModalVisible(true); }} 
+              theme={theme} 
+            />
           </View>
 
           {/* Appearance Settings */}
@@ -195,6 +203,8 @@ export function PremiumSidebar() {
 
         </ScrollView>
       </Animated.View>
+
+      <TrashModal visible={trashModalVisible} onClose={() => setTrashModalVisible(false)} />
     </View>
   );
 }

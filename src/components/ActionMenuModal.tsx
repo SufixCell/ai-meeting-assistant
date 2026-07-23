@@ -54,7 +54,7 @@ export function ActionMenuModal({ visible, onClose, title, onRename, onExport, o
           
           <TouchableOpacity style={styles.actionRow} onPress={handleDelete}>
             <Trash2 size={20} color={theme.colors.danger} />
-            <Text variant="body" style={{ color: theme.colors.danger, fontWeight: '600' }}>Delete Transcript</Text>
+            <Text variant="body" style={{ color: theme.colors.danger, fontWeight: '600' }}>Move to Trash</Text>
           </TouchableOpacity>
           
         </Animated.View>

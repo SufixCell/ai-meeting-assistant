@@ -10,12 +10,26 @@ interface ConfirmDeleteModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  title?: string;
+  description?: string;
+  confirmText?: string;
+  isDanger?: boolean;
 }
 
-export function ConfirmDeleteModal({ visible, onClose, onConfirm }: ConfirmDeleteModalProps) {
+export function ConfirmDeleteModal({
+  visible,
+  onClose,
+  onConfirm,
+  title = "Move to Trash?",
+  description = "This transcript will be moved to your Trash. You can restore it anytime from Settings > Trash.",
+  confirmText = "Move to Trash",
+  isDanger = false
+}: ConfirmDeleteModalProps) {
   const { theme } = useTheme();
 
   if (!visible) return null;
+
+  const btnBg = isDanger ? theme.colors.danger : theme.colors.primary;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -37,16 +51,16 @@ export function ConfirmDeleteModal({ visible, onClose, onConfirm }: ConfirmDelet
               }
             ]}
           >
-            <View style={[styles.iconWrapper, { backgroundColor: theme.colors.danger + '15' }]}>
-              <AlertOctagon size={36} color={theme.colors.danger} />
+            <View style={[styles.iconWrapper, { backgroundColor: (isDanger ? theme.colors.danger : theme.colors.primary) + '15' }]}>
+              <AlertOctagon size={36} color={isDanger ? theme.colors.danger : theme.colors.primary} />
             </View>
             
-            <Text variant="h1" style={{ textAlign: 'center', marginBottom: 12, color: theme.colors.text, fontSize: 24 }}>
-              Delete Transcript?
+            <Text variant="h1" style={{ textAlign: 'center', marginBottom: 12, color: theme.colors.text, fontSize: 22 }}>
+              {title}
             </Text>
             
-            <Text variant="body" style={{ textAlign: 'center', color: theme.colors.textMuted, marginBottom: 32, lineHeight: 24 }}>
-              You're about to permanently delete this transcript and its insights. This action cannot be undone.
+            <Text variant="body" style={{ textAlign: 'center', color: theme.colors.textMuted, marginBottom: 32, lineHeight: 22 }}>
+              {description}
             </Text>
             
             <View style={styles.buttonRow}>
@@ -59,9 +73,9 @@ export function ConfirmDeleteModal({ visible, onClose, onConfirm }: ConfirmDelet
                   onConfirm();
                   onClose();
                 }} 
-                style={[styles.button, { backgroundColor: theme.colors.danger }]}
+                style={[styles.button, { backgroundColor: btnBg }]}
               >
-                <Text style={{ color: '#FFF', fontWeight: '600' }}>Delete</Text>
+                <Text style={{ color: '#FFF', fontWeight: '600' }}>{confirmText}</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
