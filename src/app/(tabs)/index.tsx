@@ -253,18 +253,22 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
 
+                <ThemeAvatar 
+                  url={currentAvatar} 
+                  size={36} 
+                  onPress={() => setAvatarPickerVisible(true)} 
+                  style={{ marginRight: 6 }}
+                />
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <NotiaLogo size={38} />
                   <Text style={{ color: theme.colors.primary, fontSize: 26, fontWeight: '800', letterSpacing: -0.8 }}>Notia AI</Text>
                 </View>
               </View>
               
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
-                  <Search size={20} color={theme.colors.textMuted} />
-                </TouchableOpacity>
-                <ThemeAvatar url={currentAvatar} size={36} onPress={() => setAvatarPickerVisible(true)} />
-              </View>
+              <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
+                <Search size={20} color={theme.colors.textMuted} />
+              </TouchableOpacity>
             </View>
 
             {/* Hero Greeting Section */}

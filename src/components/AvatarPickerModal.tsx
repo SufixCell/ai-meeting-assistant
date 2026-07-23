@@ -47,8 +47,6 @@ export function AvatarPickerModal({
     } catch (e) {
       console.warn('Could not persist avatar choice:', e);
     }
-
-    onClose();
   };
 
   return (
