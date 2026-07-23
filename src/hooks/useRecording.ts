@@ -52,21 +52,28 @@ export function useRecording(onFinished?: (transcript: string) => void) {
     rec.lang = 'en-US';
 
     rec.onresult = (event: any) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      let accumulatedFinal = '';
+      let currentInterim = '';
+
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          transcriptRef.current += result[0].transcript + ' ';
-          setDisplayTranscript(transcriptRef.current);
-          setInterimText('');
+          accumulatedFinal += result[0].transcript + ' ';
         } else {
-          interim += result[0].transcript;
+          currentInterim += result[0].transcript;
         }
       }
-      if (interim) setInterimText(interim);
+
+      if (accumulatedFinal) {
+        transcriptRef.current = accumulatedFinal;
+      }
+      
+      setDisplayTranscript(transcriptRef.current.trim());
+      setInterimText(currentInterim.trim());
     };
 
-    rec.onerror = () => {
+    rec.onerror = (e: any) => {
+      console.log('[WebSpeech Error]', e.error);
       recognitionActiveRef.current = false;
     };
 
