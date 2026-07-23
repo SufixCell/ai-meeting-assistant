@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { Edit2, Share, Trash2 } from 'lucide-react-native';
 
 interface ActionMenuModalProps {
@@ -17,22 +17,45 @@ interface ActionMenuModalProps {
 export function ActionMenuModal({ visible, onClose, title, onRename, onExport, onDelete }: ActionMenuModalProps) {
   const { theme } = useTheme();
 
+  const [shouldRender, setShouldRender] = useState(visible);
+  const animOpacity = useSharedValue(0);
+  const animTranslateY = useSharedValue(100);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+      animTranslateY.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.quad) });
+    } else {
+      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(setShouldRender)(false);
+      });
+      animTranslateY.value = withTiming(100, { duration: 180, easing: Easing.in(Easing.quad) });
+    }
+  }, [visible]);
+
+  const sheetAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: animTranslateY.value }],
+  }));
+
+  const backdropAnimStyle = useAnimatedStyle(() => ({
+    opacity: animOpacity.value,
+  }));
+
   const handleDelete = () => {
     onClose();
     onDelete();
   };
 
-  if (!visible) return null;
+  if (!shouldRender) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.backdrop}>
+    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[styles.backdrop, backdropAnimStyle]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         
         <Animated.View 
-          entering={SlideInDown.duration(300).springify().damping(20)} 
-          exiting={SlideOutDown.duration(200)} 
-          style={[styles.sheet, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+          style={[styles.sheet, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }, sheetAnimStyle]}
         >
           <View style={styles.header}>
             <Text variant="label" muted style={{ textAlign: 'center' }}>{title}</Text>

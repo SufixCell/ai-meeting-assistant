@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { X, CheckCircle2, User } from 'lucide-react-native';
 import { AVATAR_OPTIONS, AvatarOption } from '../constants/avatars';
 import { ThemeAvatar } from './ThemeAvatar';
@@ -26,7 +26,33 @@ export function AvatarPickerModal({
   const { theme } = useTheme();
   const { user } = useAuth();
 
-  if (!visible) return null;
+  const [shouldRender, setShouldRender] = useState(visible);
+  const animOpacity = useSharedValue(0);
+  const animScale = useSharedValue(0.95);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+    } else {
+      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(setShouldRender)(false);
+      });
+      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
+    }
+  }, [visible]);
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    opacity: animOpacity.value,
+    transform: [{ scale: animScale.value }],
+  }));
+
+  const backdropAnimStyle = useAnimatedStyle(() => ({
+    opacity: animOpacity.value,
+  }));
+
+  if (!shouldRender) return null;
 
   const handleSelect = async (option: AvatarOption) => {
     // 1. Trigger parent callback if provided
@@ -50,22 +76,21 @@ export function AvatarPickerModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={StyleSheet.absoluteFill}>
+    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </BlurView>
 
         <View style={styles.centeredWrapper}>
           <Animated.View
-            entering={FadeIn.duration(250)}
-            exiting={FadeOut.duration(200)}
             style={[
               styles.modalCard,
               {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
-              }
+              },
+              cardAnimStyle,
             ]}
           >
             {/* Header */}

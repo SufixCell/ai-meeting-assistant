@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 
 interface RenameModalProps {
@@ -16,30 +16,55 @@ export function RenameModal({ visible, onClose, initialName, onSave }: RenameMod
   const { theme } = useTheme();
   const [name, setName] = useState(initialName);
 
+  const [shouldRender, setShouldRender] = useState(visible);
+  const animOpacity = useSharedValue(0);
+  const animScale = useSharedValue(0.95);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
+    } else {
+      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(setShouldRender)(false);
+      });
+      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
+    }
+  }, [visible]);
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    opacity: animOpacity.value,
+    transform: [{ scale: animScale.value }],
+  }));
+
+  const backdropAnimStyle = useAnimatedStyle(() => ({
+    opacity: animOpacity.value,
+  }));
+
   useEffect(() => {
     setName(initialName || 'Untitled Meeting');
   }, [initialName, visible]);
 
-  if (!visible) return null;
+  if (!shouldRender) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={StyleSheet.absoluteFill}>
+    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
         <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </BlurView>
         
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
           <Animated.View 
-            entering={SlideInDown.duration(300).springify().damping(20)} 
-            exiting={SlideOutDown.duration(200)} 
             style={[
               styles.modal, 
               { 
                 backgroundColor: theme.colors.modalSurface, 
                 borderColor: theme.colors.modalBorder,
                 shadowColor: theme.colors.modalShadow
-              }
+              },
+              cardAnimStyle,
             ]}
           >
             <Text variant="h3" style={{ marginBottom: 16, color: theme.colors.text }}>
