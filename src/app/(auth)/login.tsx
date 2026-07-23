@@ -4,7 +4,8 @@ import { useTheme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LogIn, User, Lock, Sparkles } from 'lucide-react-native';
+import { LogIn, User, Lock } from 'lucide-react-native';
+import { NotiaLogo } from '../../components/NotiaLogo';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
@@ -144,7 +145,7 @@ export default function LoginScreen() {
         {/* Logo Area */}
         <View style={styles.logoArea}>
           <View style={[styles.logoIconWrap, { backgroundColor: theme.colors.surfaceHighlight }]}>
-             <Sparkles size={36} color={theme.colors.primary} />
+             <NotiaLogo size={42} />
           </View>
           <Text style={[styles.brandText, { color: theme.colors.primary }]}>NOTIA</Text>
         </View>

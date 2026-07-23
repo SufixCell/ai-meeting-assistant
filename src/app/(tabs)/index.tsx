@@ -23,6 +23,7 @@ import { ConfirmDeleteModal } from '../../components/ConfirmDeleteModal';
 import { RenameModal } from '../../components/RenameModal';
 import { exportTranscript } from '../../utils/export';
 import { useMeetings } from '../../contexts/MeetingsContext';
+import { NotiaLogo } from '../../components/NotiaLogo';
 import { LayoutAnimation } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, withRepeat, withSequence } from 'react-native-reanimated';
 
@@ -241,7 +242,10 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
 
-                <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <NotiaLogo size={26} />
+                  <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
+                </View>
               </View>
               
               <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
