@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../theme';
 
@@ -20,58 +20,52 @@ export function ModalWrapper({
   maxHeight = '85%',
 }: ModalWrapperProps) {
   const { theme } = useTheme();
-  const [shouldRender, setShouldRender] = useState(visible);
-  const animOpacity = useSharedValue(0);
-  const animScale = useSharedValue(0.92);
+  const [mounted, setMounted] = useState(visible);
 
   useEffect(() => {
     if (visible) {
-      setShouldRender(true);
-      animOpacity.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) });
-      animScale.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.back(0.8)) });
+      setMounted(true);
     } else {
-      animOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setShouldRender)(false);
-      });
-      animScale.value = withTiming(0.92, { duration: 200, easing: Easing.in(Easing.quad) });
+      const timer = setTimeout(() => {
+        setMounted(false);
+      }, 220);
+      return () => clearTimeout(timer);
     }
   }, [visible]);
 
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-    transform: [{ scale: animScale.value }],
-  }));
-
-  const backdropAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-  }));
-
-  if (!shouldRender) return null;
+  if (!mounted && !visible) return null;
 
   return (
-    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        </BlurView>
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
+      {visible && (
+        <Animated.View 
+          entering={FadeIn.duration(220)} 
+          exiting={FadeOut.duration(200)} 
+          style={StyleSheet.absoluteFill}
+        >
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+          </BlurView>
 
-        <View style={styles.centeredWrapper}>
-          <Animated.View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                maxWidth,
-                maxHeight: maxHeight as any,
-              },
-              cardAnimStyle,
-            ]}
-          >
-            {children}
-          </Animated.View>
-        </View>
-      </Animated.View>
+          <View style={styles.centeredWrapper}>
+            <Animated.View
+              entering={ZoomIn.duration(240)}
+              exiting={ZoomOut.duration(180)}
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  maxWidth,
+                  maxHeight: maxHeight as any,
+                },
+              ]}
+            >
+              {children}
+            </Animated.View>
+          </View>
+        </Animated.View>
+      )}
     </Modal>
   );
 }
