@@ -7,7 +7,7 @@ import { Trash2, RotateCcw, X, CheckCircle2, Circle, AlertOctagon } from 'lucide
 import { useMeetings, MeetingMetadata } from '../contexts/MeetingsContext';
 import { AnimatedPressable } from './animated-pressable';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
-import { BlurView } from 'expo-blur';
+import { ModalWrapper } from './ui/ModalWrapper';
 
 interface TrashModalProps {
   visible: boolean;
@@ -24,32 +24,6 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
     permanentlyDeleteMeetings, 
     emptyTrash 
   } = useMeetings();
-
-  const [shouldRender, setShouldRender] = useState(visible);
-  const animOpacity = useSharedValue(0);
-  const animScale = useSharedValue(0.95);
-
-  useEffect(() => {
-    if (visible) {
-      setShouldRender(true);
-      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-    } else {
-      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setShouldRender)(false);
-      });
-      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
-    }
-  }, [visible]);
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-    transform: [{ scale: animScale.value }],
-  }));
-
-  const backdropAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-  }));
 
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -68,8 +42,6 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
     confirmText: '',
     action: () => {}
   });
-
-  if (!shouldRender) return null;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => 
@@ -139,24 +111,9 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
   };
 
   return (
-    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        </BlurView>
-
-        <View style={styles.centeredWrapper}>
-          <Animated.View 
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-              cardAnimStyle,
-            ]}
-          >
-            {/* Modal Header */}
+    <>
+      <ModalWrapper visible={visible} onClose={onClose} maxWidth={520}>
+        {/* Modal Header */}
             <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
               <View style={styles.headerTitleGroup}>
                 <View style={[styles.trashIconBg, { backgroundColor: theme.colors.danger + '15' }]}>
@@ -319,9 +276,7 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
                 </TouchableOpacity>
               </View>
             )}
-          </Animated.View>
-        </View>
-      </Animated.View>
+    </ModalWrapper>
 
       {/* Confirmation Modal */}
       <ConfirmDeleteModal
@@ -333,7 +288,7 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
         confirmText={confirmState.confirmText}
         isDanger={true}
       />
-    </Modal>
+    </>
   );
 }
 

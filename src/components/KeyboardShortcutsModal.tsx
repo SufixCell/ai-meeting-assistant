@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { Keyboard, X, Pause, Square, RotateCcw } from 'lucide-react-native';
 import { useKeyboardShortcuts } from '../contexts/KeyboardShortcutsContext';
-import { BlurView } from 'expo-blur';
+import { ModalWrapper } from './ui/ModalWrapper';
 
 interface KeyboardShortcutsModalProps {
   visible: boolean;
@@ -15,32 +14,6 @@ interface KeyboardShortcutsModalProps {
 export function KeyboardShortcutsModal({ visible, onClose }: KeyboardShortcutsModalProps) {
   const { theme } = useTheme();
   const { keybinds, updatePauseKey, updateStopKey, resetDefaults } = useKeyboardShortcuts();
-
-  const [shouldRender, setShouldRender] = useState(visible);
-  const animOpacity = useSharedValue(0);
-  const animScale = useSharedValue(0.95);
-
-  useEffect(() => {
-    if (visible) {
-      setShouldRender(true);
-      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-    } else {
-      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setShouldRender)(false);
-      });
-      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
-    }
-  }, [visible]);
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-    transform: [{ scale: animScale.value }],
-  }));
-
-  const backdropAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-  }));
 
   const [bindingTarget, setBindingTarget] = useState<'pause' | 'stop' | null>(null);
 
@@ -70,149 +43,128 @@ export function KeyboardShortcutsModal({ visible, onClose }: KeyboardShortcutsMo
     return () => window.removeEventListener('keydown', handleKeyCapture, { capture: true });
   }, [bindingTarget]);
 
-  if (!shouldRender) return null;
-
   return (
-    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        </BlurView>
+    <ModalWrapper visible={visible} onClose={onClose} maxWidth={480}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.headerTitleGroup}>
+          <View style={[styles.iconBg, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Keyboard size={20} color={theme.colors.primary} />
+          </View>
+          <View>
+            <Text variant="h2" style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700' }}>
+              Keyboard Shortcuts
+            </Text>
+            <Text variant="caption" style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+              Desktop web recording controls
+            </Text>
+          </View>
+        </View>
 
-        <View style={styles.centeredWrapper}>
-          <Animated.View 
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-              cardAnimStyle,
-            ]}
-          >
-            {/* Header */}
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-              <View style={styles.headerTitleGroup}>
-                <View style={[styles.iconBg, { backgroundColor: theme.colors.primary + '15' }]}>
-                  <Keyboard size={20} color={theme.colors.primary} />
-                </View>
-                <View>
-                  <Text variant="h2" style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700' }}>
-                    Keyboard Shortcuts
-                  </Text>
-                  <Text variant="caption" style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-                    Desktop web recording controls
-                  </Text>
-                </View>
-              </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={resetDefaults} style={[styles.resetBtn, { backgroundColor: theme.colors.surfaceHighlight }]}>
+            <RotateCcw size={13} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '600' }}>Reset</Text>
+          </TouchableOpacity>
 
-              <View style={styles.headerActions}>
-                <TouchableOpacity onPress={resetDefaults} style={[styles.resetBtn, { backgroundColor: theme.colors.surfaceHighlight }]}>
-                  <RotateCcw size={13} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
-                  <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '600' }}>Reset</Text>
-                </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <X size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                  <X size={20} color={theme.colors.textMuted} />
-                </TouchableOpacity>
-              </View>
+      {/* Shortcuts Binds List */}
+      <View style={styles.contentBody}>
+        
+        {/* Option 1: Pause / Resume */}
+        <View style={[styles.bindRow, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
+          <View style={styles.bindInfo}>
+            <View style={[styles.actionIconBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Pause size={16} color={theme.colors.primary} />
             </View>
-
-            {/* Shortcuts Binds List */}
-            <View style={styles.contentBody}>
-              
-              {/* Option 1: Pause / Resume */}
-              <View style={[styles.bindRow, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
-                <View style={styles.bindInfo}>
-                  <View style={[styles.actionIconBadge, { backgroundColor: theme.colors.primary + '20' }]}>
-                    <Pause size={16} color={theme.colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text }}>
-                      Pause / Resume
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2 }}>
-                      Toggle active recording state
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.bindControlGroup}>
-                  <View style={[styles.keyBadge, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.primary, fontFamily: Platform.OS === 'web' ? 'monospace' : 'normal' }}>
-                      {keybinds.pauseLabel}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => setBindingTarget(bindingTarget === 'pause' ? null : 'pause')}
-                    style={[
-                      styles.bindBtn,
-                      {
-                        backgroundColor: bindingTarget === 'pause' ? theme.colors.primary : theme.colors.surface,
-                        borderColor: bindingTarget === 'pause' ? theme.colors.primary : theme.colors.border,
-                      }
-                    ]}
-                  >
-                    <Text style={{ color: bindingTarget === 'pause' ? '#FFF' : theme.colors.text, fontSize: 13, fontWeight: '600' }}>
-                      {bindingTarget === 'pause' ? 'Press any key…' : 'Add bind'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Option 2: Stop & Process */}
-              <View style={[styles.bindRow, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
-                <View style={styles.bindInfo}>
-                  <View style={[styles.actionIconBadge, { backgroundColor: theme.colors.danger + '20' }]}>
-                    <Square size={14} color={theme.colors.danger} fill={theme.colors.danger} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text }}>
-                      Stop Recording
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2 }}>
-                      Finish session and generate summary
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.bindControlGroup}>
-                  <View style={[styles.keyBadge, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.danger, fontFamily: Platform.OS === 'web' ? 'monospace' : 'normal' }}>
-                      {keybinds.stopLabel}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => setBindingTarget(bindingTarget === 'stop' ? null : 'stop')}
-                    style={[
-                      styles.bindBtn,
-                      {
-                        backgroundColor: bindingTarget === 'stop' ? theme.colors.primary : theme.colors.surface,
-                        borderColor: bindingTarget === 'stop' ? theme.colors.primary : theme.colors.border,
-                      }
-                    ]}
-                  >
-                    <Text style={{ color: bindingTarget === 'stop' ? '#FFF' : theme.colors.text, fontSize: 13, fontWeight: '600' }}>
-                      {bindingTarget === 'stop' ? 'Press any key…' : 'Add bind'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-            </View>
-
-            {/* Footer helper */}
-            <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-              <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-                Keybinds trigger automatically during recording when not typing in text fields.
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text }}>
+                Pause / Resume
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2 }}>
+                Toggle active recording state
               </Text>
             </View>
-          </Animated.View>
+          </View>
+
+          <View style={styles.bindControlGroup}>
+            <View style={[styles.keyBadge, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.primary, fontFamily: Platform.OS === 'web' ? 'monospace' : 'normal' }}>
+                {keybinds.pauseLabel}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setBindingTarget(bindingTarget === 'pause' ? null : 'pause')}
+              style={[
+                styles.bindBtn,
+                {
+                  backgroundColor: bindingTarget === 'pause' ? theme.colors.primary : theme.colors.surface,
+                  borderColor: bindingTarget === 'pause' ? theme.colors.primary : theme.colors.border,
+                }
+              ]}
+            >
+              <Text style={{ color: bindingTarget === 'pause' ? '#FFF' : theme.colors.text, fontSize: 13, fontWeight: '600' }}>
+                {bindingTarget === 'pause' ? 'Press any key…' : 'Add bind'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </Animated.View>
-    </Modal>
+
+        {/* Option 2: Stop & Process */}
+        <View style={[styles.bindRow, { backgroundColor: theme.colors.surfaceHighlight, borderColor: theme.colors.border }]}>
+          <View style={styles.bindInfo}>
+            <View style={[styles.actionIconBadge, { backgroundColor: theme.colors.danger + '20' }]}>
+              <Square size={14} color={theme.colors.danger} fill={theme.colors.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text }}>
+                Stop Recording
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2 }}>
+                Finish session and generate summary
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.bindControlGroup}>
+            <View style={[styles.keyBadge, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.danger, fontFamily: Platform.OS === 'web' ? 'monospace' : 'normal' }}>
+                {keybinds.stopLabel}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setBindingTarget(bindingTarget === 'stop' ? null : 'stop')}
+              style={[
+                styles.bindBtn,
+                {
+                  backgroundColor: bindingTarget === 'stop' ? theme.colors.primary : theme.colors.surface,
+                  borderColor: bindingTarget === 'stop' ? theme.colors.primary : theme.colors.border,
+                }
+              ]}
+            >
+              <Text style={{ color: bindingTarget === 'stop' ? '#FFF' : theme.colors.text, fontSize: 13, fontWeight: '600' }}>
+                {bindingTarget === 'stop' ? 'Press any key…' : 'Add bind'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+      </View>
+
+      {/* Footer helper */}
+      <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+        <Text style={{ color: theme.colors.textMuted, fontSize: 12, textAlign: 'center' }}>
+          Keybinds trigger automatically during recording when not typing in text fields.
+        </Text>
+      </View>
+    </ModalWrapper>
   );
 }
 

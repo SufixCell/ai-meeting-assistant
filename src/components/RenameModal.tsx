@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { ModalWrapper } from './ui/ModalWrapper';
 
 interface RenameModalProps {
   visible: boolean;
@@ -16,88 +15,42 @@ export function RenameModal({ visible, onClose, initialName, onSave }: RenameMod
   const { theme } = useTheme();
   const [name, setName] = useState(initialName);
 
-  const [shouldRender, setShouldRender] = useState(visible);
-  const animOpacity = useSharedValue(0);
-  const animScale = useSharedValue(0.95);
-
-  useEffect(() => {
-    if (visible) {
-      setShouldRender(true);
-      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-    } else {
-      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setShouldRender)(false);
-      });
-      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
-    }
-  }, [visible]);
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-    transform: [{ scale: animScale.value }],
-  }));
-
-  const backdropAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-  }));
-
   useEffect(() => {
     setName(initialName || 'Untitled Meeting');
   }, [initialName, visible]);
 
-  if (!shouldRender) return null;
-
   return (
-    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        </BlurView>
+    <ModalWrapper visible={visible} onClose={onClose} maxWidth={440}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ padding: 24 }}>
+        <Text variant="h3" style={{ marginBottom: 16, color: theme.colors.text, fontSize: 18, fontWeight: '700' }}>
+          Rename Transcript
+        </Text>
         
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-          <Animated.View 
-            style={[
-              styles.modal, 
-              { 
-                backgroundColor: theme.colors.modalSurface, 
-                borderColor: theme.colors.modalBorder,
-                shadowColor: theme.colors.modalShadow
-              },
-              cardAnimStyle,
-            ]}
+        <TextInput
+          style={[styles.input, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }]}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          selectionColor={theme.colors.primary}
+        />
+        
+        <View style={styles.buttonRow}>
+          <TouchableOpacity onPress={onClose} style={[styles.button, { backgroundColor: theme.colors.surfaceHighlight }]}>
+            <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Cancel</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => {
+              onSave(name);
+              onClose();
+            }} 
+            style={[styles.button, { backgroundColor: theme.colors.primary }]}
           >
-            <Text variant="h3" style={{ marginBottom: 16, color: theme.colors.text }}>
-              Rename Transcript
-            </Text>
-            
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.text }]}
-              value={name}
-              onChangeText={setName}
-              autoFocus
-              selectionColor={theme.colors.primary}
-            />
-            
-            <View style={styles.buttonRow}>
-              <TouchableOpacity onPress={onClose} style={[styles.button, { backgroundColor: theme.colors.surfaceHighlight }]}>
-                <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={() => {
-                  onSave(name);
-                  onClose();
-                }} 
-                style={[styles.button, { backgroundColor: theme.colors.primary }]}
-              >
-                <Text style={{ color: '#FFF', fontWeight: '600' }}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </Modal>
+            <Text style={{ color: '#FFF', fontWeight: '600' }}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ModalWrapper>
   );
 }
 

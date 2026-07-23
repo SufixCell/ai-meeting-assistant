@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './ui/Text';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { X, CheckCircle2, User } from 'lucide-react-native';
 import { AVATAR_OPTIONS, AvatarOption } from '../constants/avatars';
 import { ThemeAvatar } from './ThemeAvatar';
-import { BlurView } from 'expo-blur';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { ModalWrapper } from './ui/ModalWrapper';
 
 interface AvatarPickerModalProps {
   visible: boolean;
@@ -25,34 +24,6 @@ export function AvatarPickerModal({
 }: AvatarPickerModalProps) {
   const { theme } = useTheme();
   const { user } = useAuth();
-
-  const [shouldRender, setShouldRender] = useState(visible);
-  const animOpacity = useSharedValue(0);
-  const animScale = useSharedValue(0.95);
-
-  useEffect(() => {
-    if (visible) {
-      setShouldRender(true);
-      animOpacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-      animScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.quad) });
-    } else {
-      animOpacity.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(setShouldRender)(false);
-      });
-      animScale.value = withTiming(0.95, { duration: 180, easing: Easing.in(Easing.quad) });
-    }
-  }, [visible]);
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-    transform: [{ scale: animScale.value }],
-  }));
-
-  const backdropAnimStyle = useAnimatedStyle(() => ({
-    opacity: animOpacity.value,
-  }));
-
-  if (!shouldRender) return null;
 
   const handleSelect = async (option: AvatarOption) => {
     // 1. Trigger parent callback if provided
@@ -76,83 +47,64 @@ export function AvatarPickerModal({
   };
 
   return (
-    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropAnimStyle]}>
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-        </BlurView>
-
-        <View style={styles.centeredWrapper}>
-          <Animated.View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-              cardAnimStyle,
-            ]}
-          >
-            {/* Header */}
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-              <View style={styles.headerTitleGroup}>
-                <View style={[styles.iconBg, { backgroundColor: theme.colors.primary + '15' }]}>
-                  <User size={20} color={theme.colors.primary} />
-                </View>
-                <View>
-                  <Text variant="h2" style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700' }}>
-                    Choose Avatar
-                  </Text>
-                  <Text variant="caption" style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-                    Pick an avatar that suits your style
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X size={20} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Avatars Grid - NO UPLOAD BUTTON PLACEHOLDER */}
-            <ScrollView style={styles.scrollArea} contentContainerStyle={styles.gridContent}>
-              {AVATAR_OPTIONS.map((item) => {
-                const isSelected = currentAvatarUrl === item.url;
-
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => handleSelect(item)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.avatarTile,
-                      {
-                        backgroundColor: isSelected
-                          ? theme.colors.primary + '20'
-                          : theme.colors.surfaceHighlight,
-                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                      }
-                    ]}
-                  >
-                    <ThemeAvatar url={item.url} size={54} showBorder={false} />
-
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text, marginTop: 6 }}>
-                      {item.name}
-                    </Text>
-
-                    {isSelected && (
-                      <View style={styles.checkBadge}>
-                        <CheckCircle2 size={16} color={theme.colors.primary} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
+    <ModalWrapper visible={visible} onClose={onClose} maxWidth={480} maxHeight="80%">
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.headerTitleGroup}>
+          <View style={[styles.iconBg, { backgroundColor: theme.colors.primary + '15' }]}>
+            <User size={20} color={theme.colors.primary} />
+          </View>
+          <View>
+            <Text variant="h2" style={{ color: theme.colors.text, fontSize: 18, fontWeight: '700' }}>
+              Choose Avatar
+            </Text>
+            <Text variant="caption" style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+              Pick an avatar that suits your style
+            </Text>
+          </View>
         </View>
-      </Animated.View>
-    </Modal>
+
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <X size={20} color={theme.colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Avatars Grid */}
+      <ScrollView style={styles.scrollArea} contentContainerStyle={styles.gridContent}>
+        {AVATAR_OPTIONS.map((item) => {
+          const isSelected = currentAvatarUrl === item.url;
+
+          return (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => handleSelect(item)}
+              activeOpacity={0.7}
+              style={[
+                styles.avatarTile,
+                {
+                  backgroundColor: isSelected
+                    ? theme.colors.primary + '20'
+                    : theme.colors.surfaceHighlight,
+                  borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                }
+              ]}
+            >
+              <ThemeAvatar url={item.url} size={54} showBorder={false} />
+
+              <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text, marginTop: 6 }}>
+                {item.name}
+              </Text>
+
+              {isSelected && (
+                <View style={styles.checkBadge}>
+                  <CheckCircle2 size={16} color={theme.colors.primary} />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </ModalWrapper>
   );
 }
 
