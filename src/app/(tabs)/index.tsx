@@ -211,19 +211,6 @@ export default function HomeScreen() {
               </View>
             </View>
           </View>
-
-          {/* Participant Avatar Stack */}
-          <View style={styles.avatarStack}>
-            <View style={[styles.stackAvatar, { backgroundColor: theme.colors.primary, borderColor: theme.colors.surface }]}>
-              <Text style={{ color: theme.colors.onPrimary, fontSize: 10, fontWeight: '700' }}>JD</Text>
-            </View>
-            <View style={[styles.stackAvatar, { backgroundColor: '#a44100', marginLeft: -8, borderColor: theme.colors.surface }]}>
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>SK</Text>
-            </View>
-            <View style={[styles.stackAvatar, { backgroundColor: theme.colors.surfaceHighlight, marginLeft: -8, borderColor: theme.colors.surface }]}>
-              <Text style={{ color: theme.colors.textMuted, fontSize: 10, fontWeight: '700' }}>+2</Text>
-            </View>
-          </View>
         </View>
 
         <View style={[styles.stitchQuoteBorder, { borderLeftColor: theme.colors.primary }]}>

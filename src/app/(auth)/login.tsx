@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   form: { gap: 16 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, height: 54 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 16 },
+  input: { flex: 1, fontSize: 16, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
   forgotPasswordContainer: { alignItems: 'flex-end', marginTop: -8, marginBottom: 8 },
   forgotPasswordText: { fontSize: 14, fontWeight: '500' },
   primaryBtnWrap: { borderRadius: 14, overflow: 'hidden' },

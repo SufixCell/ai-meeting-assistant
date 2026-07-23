@@ -166,6 +166,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   primaryButton: {
     height: 56,

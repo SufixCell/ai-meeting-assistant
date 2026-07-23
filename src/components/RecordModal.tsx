@@ -313,18 +313,6 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
                  <View style={[styles.visualizerGlow, { backgroundColor: theme.colors.primary }]} />
                  <AudioVisualizer isRecording={state === 'recording'} mediaStream={mediaStream} />
               </View>
-
-              {/* Simulated floating AI badges */}
-              {timer > 3 && (
-                <Animated.View entering={FadeIn.delay(300)} exiting={FadeOut} style={[styles.aiBadge, { backgroundColor: theme.colors.success + '20', borderColor: theme.colors.success + '40' }]}>
-                  <Text style={{ color: theme.colors.success, fontSize: 13, fontWeight: '600' }}>Action Item detected ✓</Text>
-                </Animated.View>
-              )}
-              {timer > 8 && (
-                <Animated.View entering={FadeIn.delay(500)} exiting={FadeOut} style={[styles.aiBadge, { backgroundColor: theme.colors.purple + '20', borderColor: theme.colors.purple + '40' }]}>
-                  <Text style={{ color: theme.colors.purple, fontSize: 13, fontWeight: '600' }}>Decision detected ✓</Text>
-                </Animated.View>
-              )}
             </View>
           )}
 

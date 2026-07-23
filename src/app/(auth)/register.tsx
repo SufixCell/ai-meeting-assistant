@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   form: { gap: 16 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, height: 54 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 16 },
+  input: { flex: 1, fontSize: 16, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) },
   primaryBtnWrap: { borderRadius: 14, overflow: 'hidden', marginTop: 8 },
   primaryGradient: { height: 54, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
