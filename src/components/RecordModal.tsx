@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../theme';
 import { AudioVisualizer } from './audio-visualizer';
 import { AnimatedPressable } from './animated-pressable';
+import { useKeyboardShortcuts } from '../contexts/KeyboardShortcutsContext';
 
 const customEntering = () => {
   'worklet';
@@ -54,6 +55,7 @@ const processingStages = [
 export function RecordModal({ visible, onClose }: RecordModalProps) {
   const { theme } = useTheme();
   const router = useRouter();
+  const { registerPauseHandler, registerStopHandler } = useKeyboardShortcuts();
 
   const [state, setState] = useState<RecordState>('idle');
   const [timer, setTimer] = useState(0);
@@ -66,6 +68,18 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
   const shouldBeRecordingRef = useRef(false);
+
+  // Register hotkeys when modal is open & recording or paused
+  useEffect(() => {
+    if (visible && (state === 'recording' || state === 'paused')) {
+      registerPauseHandler(() => handlePause());
+      registerStopHandler(() => handleStop());
+    }
+    return () => {
+      registerPauseHandler(null);
+      registerStopHandler(null);
+    };
+  }, [visible, state]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

@@ -121,8 +121,8 @@ export function TrashModal({ visible, onClose }: TrashModalProps) {
 
         <View style={styles.centeredWrapper}>
           <Animated.View 
-            entering={SlideInDown.duration(300).springify().damping(20)} 
-            exiting={SlideOutDown.duration(200)}
+            entering={FadeIn.duration(250)} 
+            exiting={FadeOut.duration(200)}
             style={[
               styles.modalCard,
               {

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { BotSessionProvider } from '../contexts/BotSessionContext';
 import { SidebarProvider } from '../contexts/SidebarContext';
 import { MeetingsProvider } from '../contexts/MeetingsContext';
+import { KeyboardShortcutsProvider } from '../contexts/KeyboardShortcutsContext';
 import { PremiumSidebar } from '../components/PremiumSidebar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
@@ -40,14 +41,16 @@ export default function RootLayout() {
     <AuthProvider>
       <ThemeProvider>
         <MeetingsProvider>
-          <SidebarProvider>
-            <BotSessionProvider>
-              <View style={{ flex: 1 }}>
-                <RootLayoutNav />
-                <PremiumSidebar />
-              </View>
-            </BotSessionProvider>
-          </SidebarProvider>
+          <KeyboardShortcutsProvider>
+            <SidebarProvider>
+              <BotSessionProvider>
+                <View style={{ flex: 1 }}>
+                  <RootLayoutNav />
+                  <PremiumSidebar />
+                </View>
+              </BotSessionProvider>
+            </SidebarProvider>
+          </KeyboardShortcutsProvider>
         </MeetingsProvider>
       </ThemeProvider>
     </AuthProvider>

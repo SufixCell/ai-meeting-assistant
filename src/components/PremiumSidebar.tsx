@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Dimensions, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../theme';
@@ -13,6 +13,7 @@ import { AnimatedPressable } from './animated-pressable';
 
 import { useMeetings } from '../contexts/MeetingsContext';
 import { TrashModal } from './TrashModal';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 
 const { width, height } = Dimensions.get('window');
 const SIDEBAR_WIDTH = Math.min(width * 0.85, 360);
@@ -26,6 +27,10 @@ export function PremiumSidebar() {
   const { user, signOut } = useAuth();
   const { meetings, trashedMeetings } = useMeetings();
   const [trashModalVisible, setTrashModalVisible] = React.useState(false);
+  const [keyboardModalVisible, setKeyboardModalVisible] = React.useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+
+  const isDesktopWeb = Platform.OS === 'web' && windowWidth >= 768;
 
   const displayName = user?.user_metadata?.full_name || 
                       user?.user_metadata?.name || 
@@ -189,7 +194,15 @@ export function PremiumSidebar() {
           <View style={styles.section}>
             <Text variant="label" style={{ marginBottom: 8, marginLeft: 16 }}>MORE</Text>
             <NavItem icon={Shield} label="Privacy" active={false} onPress={() => {}} theme={theme} />
-            {Platform.OS === 'web' && <NavItem icon={Keyboard} label="Keyboard Shortcuts" active={false} onPress={() => {}} theme={theme} />}
+            {isDesktopWeb && (
+              <NavItem 
+                icon={Keyboard} 
+                label="Keyboard Shortcuts" 
+                active={false} 
+                onPress={() => { closeSidebar(); setKeyboardModalVisible(true); }} 
+                theme={theme} 
+              />
+            )}
             <NavItem icon={Info} label="What's New" active={false} onPress={() => {}} theme={theme} />
           </View>
 
@@ -205,6 +218,7 @@ export function PremiumSidebar() {
       </Animated.View>
 
       <TrashModal visible={trashModalVisible} onClose={() => setTrashModalVisible(false)} />
+      <KeyboardShortcutsModal visible={keyboardModalVisible} onClose={() => setKeyboardModalVisible(false)} />
     </View>
   );
 }

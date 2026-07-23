@@ -8,6 +8,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, Eas
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRecording, processingStages } from '../hooks/useRecording';
 import { AudioVisualizer } from './audio-visualizer';
+import { useKeyboardShortcuts } from '../contexts/KeyboardShortcutsContext';
 
 interface CaptureHeroProps {
   onProcessingFinished?: (transcript: string) => void;
@@ -17,6 +18,7 @@ interface CaptureHeroProps {
 
 export function CaptureHero({ onProcessingFinished, onJoinMeeting, onImport }: CaptureHeroProps) {
   const { theme } = useTheme();
+  const { registerPauseHandler, registerStopHandler } = useKeyboardShortcuts();
   
   const { 
     state, 
@@ -31,6 +33,21 @@ export function CaptureHero({ onProcessingFinished, onJoinMeeting, onImport }: C
   } = useRecording(onProcessingFinished);
 
   const pulseAnim = useSharedValue(1);
+
+  // Register hotkeys when recording or paused
+  useEffect(() => {
+    if (state === 'recording' || state === 'paused') {
+      registerPauseHandler(() => pauseRecording());
+      registerStopHandler(() => stopRecording());
+    } else {
+      registerPauseHandler(null);
+      registerStopHandler(null);
+    }
+    return () => {
+      registerPauseHandler(null);
+      registerStopHandler(null);
+    };
+  }, [state, pauseRecording, stopRecording]);
 
   useEffect(() => {
     if (state === 'recording') {
