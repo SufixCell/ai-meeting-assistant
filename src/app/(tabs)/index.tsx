@@ -242,9 +242,9 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <NotiaLogo size={26} />
-                  <Text style={{ color: theme.colors.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.5 }}>Notia AI</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <NotiaLogo size={38} />
+                  <Text style={{ color: theme.colors.primary, fontSize: 26, fontWeight: '800', letterSpacing: -0.8 }}>Notia AI</Text>
                 </View>
               </View>
               
