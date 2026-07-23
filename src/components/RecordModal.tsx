@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBotSession } from '../contexts/BotSessionContext';
-import { Mic, Square, Loader2, X, Pause, Play } from 'lucide-react-native';
+import { Mic, Square, Loader2, X, Pause, Play, ChevronDown, Check, Volume2 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, Easing, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -10,6 +9,7 @@ import { useTheme } from '../theme';
 import { AudioVisualizer } from './audio-visualizer';
 import { AnimatedPressable } from './animated-pressable';
 import { useKeyboardShortcuts } from '../contexts/KeyboardShortcutsContext';
+import { transcribeAudioBlob } from '../services/transcriptionService';
 
 const customEntering = () => {
   'worklet';
@@ -44,9 +44,14 @@ interface RecordModalProps {
   onClose: () => void;
 }
 
+interface AudioDevice {
+  deviceId: string;
+  label: string;
+}
+
 const processingStages = [
   'Capturing audio…',
-  'Generating transcript…',
+  'Transcribing with Groq Whisper…',
   'Extracting decisions…',
   'Finding action items…',
   'Building summary…'
@@ -64,10 +69,17 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
   const [interimText, setInterimText] = useState('');
   const [mediaStream, setMediaStream] = useState<any>(null);
 
+  // Audio Device Selection State
+  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [showDevicePicker, setShowDevicePicker] = useState(false);
+
   const transcriptRef = useRef('');
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
   const shouldBeRecordingRef = useRef(false);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Register hotkeys when modal is open & recording or paused
   useEffect(() => {
@@ -80,6 +92,41 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
       registerStopHandler(null);
     };
   }, [visible, state]);
+
+  // Enumerate Audio Devices
+  const fetchAudioDevices = useCallback(async () => {
+    if (Platform.OS === 'web' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      try {
+        // Request temporary mic permission to reveal device labels
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+        
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices
+          .filter(d => d.kind === 'audioinput')
+          .map((d, index) => ({
+            deviceId: d.deviceId,
+            label: d.label || `Microphone ${index + 1}`,
+          }));
+
+        if (tempStream) {
+          tempStream.getTracks().forEach(t => t.stop());
+        }
+
+        setAudioDevices(mics);
+        if (mics.length > 0 && !selectedDeviceId) {
+          setSelectedDeviceId(mics[0].deviceId);
+        }
+      } catch (err) {
+        console.warn('Could not enumerate audio devices:', err);
+      }
+    }
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (visible) {
+      fetchAudioDevices();
+    }
+  }, [visible]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -97,6 +144,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
       setDisplayTranscript('');
       setInterimText('');
       setProcessingStage(0);
+      setShowDevicePicker(false);
     }
   }, [visible]);
 
@@ -108,25 +156,11 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
     return () => clearInterval(interval);
   }, [state]);
 
-  useEffect(() => {
-    if (visible && Platform.OS === 'web' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then((stream) => {
-          stream.getTracks().forEach(track => track.stop());
-        })
-        .catch((err) => {
-          console.warn('Microphone permission error:', err);
-        });
-    }
-  }, [visible]);
-
+  // Live Desktop WebSpeech Captions (Preview Only)
   const startRecognition = useCallback(() => {
     if (Platform.OS !== 'web') return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      setDisplayTranscript('Browser not supported.');
-      return;
-    }
+    if (!SR) return;
 
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch (_) {}
@@ -152,7 +186,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
       if (interim) setInterimText(interim);
     };
 
-    rec.onerror = (e: any) => {
+    rec.onerror = () => {
       recognitionActiveRef.current = false;
     };
 
@@ -182,29 +216,58 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
       try { recognitionRef.current.stop(); } catch (_) {}
       recognitionRef.current = null;
     }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch (_) {}
+    }
     if (mediaStream) {
       mediaStream.getTracks().forEach((track: any) => track.stop());
       setMediaStream(null);
     }
   }, [mediaStream]);
 
-  const handleStartRecording = () => {
+  const handleStartRecording = async () => {
     transcriptRef.current = '';
     setDisplayTranscript('');
     setInterimText('');
     setTimer(0);
     setState('recording');
     shouldBeRecordingRef.current = true;
-    
+    audioChunksRef.current = [];
+
+    const audioConstraints: any = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}),
+    };
+
     if (Platform.OS === 'web' && navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          setMediaStream(stream);
-          startRecognition();
-        })
-        .catch(err => {
-          setDisplayTranscript('Microphone access denied.');
-        });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        setMediaStream(stream);
+
+        // High-Quality MediaRecorder setup
+        const mimeType = (window as any).MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : (window as any).MediaRecorder?.isTypeSupported?.('audio/mp4')
+          ? 'audio/mp4'
+          : 'audio/webm';
+
+        const mr = new (window as any).MediaRecorder(stream, { mimeType });
+        mr.ondataavailable = (e: any) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+        mr.start(500); // Record audio chunks every 500ms
+        mediaRecorderRef.current = mr;
+
+        // Desktop Live Preview
+        startRecognition();
+      } catch (err) {
+        console.error('Microphone access error:', err);
+        setDisplayTranscript('Could not access microphone.');
+      }
     } else {
       startRecognition();
     }
@@ -216,15 +279,21 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (_) {}
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try { mediaRecorderRef.current.pause(); } catch (_) {}
+      }
       setState('paused');
     } else if (state === 'paused') {
       setState('recording');
       shouldBeRecordingRef.current = true;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+        try { mediaRecorderRef.current.resume(); } catch (_) {}
+      }
       startRecognition();
     }
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     stopRecognition();
     setState('processing');
   };
@@ -234,6 +303,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
     onClose();
   };
 
+  // Processing & Groq Whisper Single Source of Truth
   useEffect(() => {
     if (state === 'processing') {
       setProcessingStage(0);
@@ -243,16 +313,49 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
         if (stage < processingStages.length) {
           setProcessingStage(stage);
         }
-      }, 1000);
+      }, 900);
 
-      const groqTimer = setTimeout(async () => {
+      const processAudioTask = async () => {
+        let finalTranscript = '';
+
+        try {
+          // 1. Otter.ai Model: Build Audio Blob from MediaRecorder chunks
+          if (audioChunksRef.current.length > 0) {
+            const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+            console.log(`Audio Blob size: ${audioBlob.size} bytes (${mimeType})`);
+
+            if (audioBlob.size > 100) {
+              setProcessingStage(1); // Transcribing with Groq Whisper
+              const res = await transcribeAudioBlob(audioBlob, 'Recorded Meeting');
+              if (res.transcript && res.transcript.trim().length > 0) {
+                finalTranscript = res.transcript.trim();
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Cloud Whisper API transcription warning, checking fallback text:', err);
+        }
+
+        // Fallback to desktop live preview text if audio blob was empty/failed
+        if (!finalTranscript) {
+          finalTranscript = transcriptRef.current.trim();
+        }
+
+        if (!finalTranscript) {
+          finalTranscript = 'Meeting recording completed.';
+        }
+
         clearInterval(interval);
-        const finalTranscript = transcriptRef.current.trim();
+
         router.push({
           pathname: '/(tabs)/summary',
           params: { transcript: finalTranscript, ts: Date.now().toString() },
         });
+
         onClose();
+
         setTimeout(() => {
           setState('idle');
           setTimer(0);
@@ -260,16 +363,18 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
           setDisplayTranscript('');
           setInterimText('');
         }, 500);
-      }, Math.min(processingStages.length * 1000, 5000));
+      };
+
+      processAudioTask();
 
       return () => {
         clearInterval(interval);
-        clearTimeout(groqTimer);
       };
     }
   }, [state]);
 
   const previewTranscript = (displayTranscript + interimText).slice(-200);
+  const selectedDeviceLabel = audioDevices.find(d => d.deviceId === selectedDeviceId)?.label || 'Default Microphone';
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -292,6 +397,58 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
           <View style={styles.centerStage}>
           {state === 'idle' && (
             <>
+              {/* Mic Device Selector Pill */}
+              {audioDevices.length > 0 && (
+                <View style={{ marginBottom: 28, zIndex: 99 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowDevicePicker(prev => !prev)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.deviceSelectorBtn,
+                      {
+                        backgroundColor: theme.colors.surfaceHighlight,
+                        borderColor: theme.colors.border,
+                      }
+                    ]}
+                  >
+                    <Volume2 size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
+                    <Text numberOfLines={1} style={{ color: theme.colors.text, fontSize: 13, fontWeight: '600', maxWidth: 220 }}>
+                      {selectedDeviceLabel}
+                    </Text>
+                    <ChevronDown size={16} color={theme.colors.textMuted} style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+
+                  {/* Device Dropdown Menu */}
+                  {showDevicePicker && (
+                    <View style={[styles.deviceDropdown, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      <ScrollView style={{ maxHeight: 180 }}>
+                        {audioDevices.map((device) => {
+                          const isSelected = device.deviceId === selectedDeviceId;
+                          return (
+                            <TouchableOpacity
+                              key={device.deviceId}
+                              onPress={() => {
+                                setSelectedDeviceId(device.deviceId);
+                                setShowDevicePicker(false);
+                              }}
+                              style={[
+                                styles.deviceOption,
+                                isSelected && { backgroundColor: theme.colors.primary + '15' }
+                              ]}
+                            >
+                              <Text numberOfLines={1} style={{ fontSize: 13, color: isSelected ? theme.colors.primary : theme.colors.text, flex: 1, fontWeight: isSelected ? '600' : '400' }}>
+                                {device.label}
+                              </Text>
+                              {isSelected && <Check size={16} color={theme.colors.primary} />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <AnimatedPressable onPress={handleStartRecording} scaleTo={0.9}>
                 <View style={styles.cinematicOrbWrapper}>
                   <View style={[styles.cinematicOrbGlow, { backgroundColor: theme.colors.primary }]} />
@@ -303,7 +460,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
                   </LinearGradient>
                 </View>
               </AnimatedPressable>
-              <Text style={[styles.tapText, { color: theme.colors.textMuted }]}>Begin intelligence capture</Text>
+              <Text style={[styles.tapText, { color: theme.colors.textMuted }]}>Tap orb to begin recording</Text>
             </>
           )}
 
@@ -319,7 +476,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
 
               <View style={styles.transcriptContainer}>
                  <Text style={[styles.previewText, { color: theme.colors.text }]}>
-                   {previewTranscript || 'Listening for conversation...'}
+                   {previewTranscript || 'Listening to microphone audio...'}
                  </Text>
               </View>
 
@@ -337,7 +494,7 @@ export function RecordModal({ visible, onClose }: RecordModalProps) {
                 {processingStages[processingStage]}
               </Text>
               <Text style={[styles.processingSubtext, { color: theme.colors.textMuted }]}>
-                Extracting conversation intelligence...
+                Processing via Groq Whisper cloud engine...
               </Text>
             </View>
           )}
@@ -395,6 +552,35 @@ const styles = StyleSheet.create({
     padding: 32,
     width: '100%',
   },
+  deviceSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  deviceDropdown: {
+    position: 'absolute',
+    top: 44,
+    left: 0,
+    right: 0,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  deviceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   cinematicOrbWrapper: {
     position: 'relative',
     width: 160,
@@ -448,84 +634,78 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF444420',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
+    gap: 8,
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#EF4444',
-    marginRight: 6,
   },
   liveText: {
     color: '#EF4444',
-    fontWeight: '700',
     fontSize: 12,
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   transcriptContainer: {
-    flex: 1,
-    justifyContent: 'center',
     width: '100%',
+    maxHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 20,
   },
   previewText: {
-    fontSize: 36,
-    fontWeight: '700',
-    letterSpacing: -1,
-    lineHeight: 44,
+    fontSize: 16,
     textAlign: 'center',
+    opacity: 0.7,
+    lineHeight: 24,
   },
   visualizerContainer: {
     position: 'relative',
-    height: 120,
     width: '100%',
+    height: 100,
     alignItems: 'center',
     justifyContent: 'center',
   },
   visualizerGlow: {
     position: 'absolute',
-    width: 200,
-    height: 80,
-    borderRadius: 40,
-    filter: 'blur(40px)',
-    opacity: 0.3,
-  },
-  aiBadge: {
-    position: 'absolute',
-    bottom: 140,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    width: '80%',
+    height: 60,
+    borderRadius: 30,
+    filter: 'blur(25px)',
+    opacity: 0.15,
   },
   processingContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
   processingText: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-    marginTop: 32,
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.3,
   },
   processingSubtext: {
-    fontSize: 16,
-    marginTop: 8,
+    fontSize: 14,
   },
   controlsBar: {
-    paddingHorizontal: 40,
-    paddingBottom: 40,
     height: 100,
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 32,
   },
   controlsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: 320,
   },
   cancelBtn: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   cancelText: {
     fontSize: 16,

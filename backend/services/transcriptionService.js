@@ -8,10 +8,10 @@ async function transcribeAudio(audioFilePath) {
 
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-  console.log('Sending to Groq Whisper (whisper-large-v3) for transcription...');
+  console.log('Sending to Groq Whisper (whisper-large-v3-turbo) for transcription...');
   const transcription = await groq.audio.transcriptions.create({
     file: fs.createReadStream(audioFilePath),
-    model: 'whisper-large-v3',
+    model: 'whisper-large-v3-turbo',
     response_format: 'text',
   });
 

@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { transcribeAudioBlob } from '../services/transcriptionService';
 
 export type RecordState = 'idle' | 'recording' | 'paused' | 'processing';
 
 export const processingStages = [
   'Capturing audio…',
-  'Generating transcript…',
+  'Transcribing with Groq Whisper…',
   'Extracting decisions…',
   'Finding action items…',
   'Building summary…'
@@ -25,6 +26,8 @@ export function useRecording(onFinished?: (transcript: string) => void) {
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
   const shouldBeRecordingRef = useRef(false);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     let interval: any;
@@ -37,10 +40,7 @@ export function useRecording(onFinished?: (transcript: string) => void) {
   const startRecognition = useCallback(() => {
     if (Platform.OS !== 'web') return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      setDisplayTranscript('Browser not supported for voice recognition.');
-      return;
-    }
+    if (!SR) return;
 
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch (_) {}
@@ -66,7 +66,7 @@ export function useRecording(onFinished?: (transcript: string) => void) {
       if (interim) setInterimText(interim);
     };
 
-    rec.onerror = (e: any) => {
+    rec.onerror = () => {
       recognitionActiveRef.current = false;
     };
 
@@ -96,29 +96,55 @@ export function useRecording(onFinished?: (transcript: string) => void) {
       try { recognitionRef.current.stop(); } catch (_) {}
       recognitionRef.current = null;
     }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch (_) {}
+    }
     if (mediaStream) {
       mediaStream.getTracks().forEach((track: any) => track.stop());
       setMediaStream(null);
     }
   }, [mediaStream]);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     transcriptRef.current = '';
     setDisplayTranscript('');
     setInterimText('');
     setTimer(0);
     setState('recording');
     shouldBeRecordingRef.current = true;
-    
+    audioChunksRef.current = [];
+
+    const audioConstraints: any = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+
     if (Platform.OS === 'web' && navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          setMediaStream(stream);
-          startRecognition();
-        })
-        .catch(err => {
-          setDisplayTranscript('Microphone access denied.');
-        });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        setMediaStream(stream);
+
+        const mimeType = (window as any).MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : (window as any).MediaRecorder?.isTypeSupported?.('audio/mp4')
+          ? 'audio/mp4'
+          : 'audio/webm';
+
+        const mr = new (window as any).MediaRecorder(stream, { mimeType });
+        mr.ondataavailable = (e: any) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+        mr.start(500);
+        mediaRecorderRef.current = mr;
+
+        startRecognition();
+      } catch (err) {
+        console.error('Microphone access error:', err);
+        setDisplayTranscript('Could not access microphone.');
+      }
     } else {
       startRecognition();
     }
@@ -130,10 +156,16 @@ export function useRecording(onFinished?: (transcript: string) => void) {
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (_) {}
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try { mediaRecorderRef.current.pause(); } catch (_) {}
+      }
       setState('paused');
     } else if (state === 'paused') {
       setState('recording');
       shouldBeRecordingRef.current = true;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+        try { mediaRecorderRef.current.resume(); } catch (_) {}
+      }
       startRecognition();
     }
   }, [state, startRecognition]);
@@ -151,7 +183,7 @@ export function useRecording(onFinished?: (transcript: string) => void) {
     setInterimText('');
   }, [stopRecognition]);
 
-  // Handle processing state flow
+  // Handle processing state flow with Groq Whisper
   useEffect(() => {
     if (state === 'processing') {
       setProcessingStage(0);
@@ -161,11 +193,38 @@ export function useRecording(onFinished?: (transcript: string) => void) {
         if (stage < processingStages.length) {
           setProcessingStage(stage);
         }
-      }, 1000);
+      }, 900);
 
-      const finishTimer = setTimeout(() => {
+      const processAudioTask = async () => {
+        let finalTranscript = '';
+
+        try {
+          if (audioChunksRef.current.length > 0) {
+            const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+            if (audioBlob.size > 100) {
+              setProcessingStage(1);
+              const res = await transcribeAudioBlob(audioBlob, 'Recorded Meeting');
+              if (res.transcript && res.transcript.trim().length > 0) {
+                finalTranscript = res.transcript.trim();
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Cloud Whisper API transcription warning, fallback text:', err);
+        }
+
+        if (!finalTranscript) {
+          finalTranscript = transcriptRef.current.trim();
+        }
+
+        if (!finalTranscript) {
+          finalTranscript = 'Meeting recording completed.';
+        }
+
         clearInterval(interval);
-        const finalTranscript = transcriptRef.current.trim();
+
         if (onFinished) {
           onFinished(finalTranscript);
         } else {
@@ -174,7 +233,7 @@ export function useRecording(onFinished?: (transcript: string) => void) {
             params: { transcript: finalTranscript, ts: Date.now().toString() },
           });
         }
-        
+
         setTimeout(() => {
           setState('idle');
           setTimer(0);
@@ -182,11 +241,12 @@ export function useRecording(onFinished?: (transcript: string) => void) {
           setDisplayTranscript('');
           setInterimText('');
         }, 500);
-      }, Math.min(processingStages.length * 1000, 4000));
+      };
+
+      processAudioTask();
 
       return () => {
         clearInterval(interval);
-        clearTimeout(finishTimer);
       };
     }
   }, [state, onFinished, router]);
