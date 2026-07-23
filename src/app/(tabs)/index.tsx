@@ -248,17 +248,17 @@ export default function HomeScreen() {
             <View style={[styles.topAppBar, { borderBottomColor: theme.colors.border }]}>
               <View style={styles.brandGroup}>
                 {!isDesktop && (
-                  <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={styles.menuTriggerBtn}>
-                    <Menu size={22} color={theme.colors.text} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={styles.menuTriggerBtn}>
+                      <Menu size={22} color={theme.colors.text} />
+                    </TouchableOpacity>
+                    <ThemeAvatar 
+                      url={currentAvatar} 
+                      size={36} 
+                      onPress={() => setAvatarPickerVisible(true)} 
+                    />
+                  </View>
                 )}
-
-                <ThemeAvatar 
-                  url={currentAvatar} 
-                  size={36} 
-                  onPress={() => setAvatarPickerVisible(true)} 
-                  style={{ marginRight: 6 }}
-                />
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <NotiaLogo size={38} />

@@ -9,6 +9,9 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import { BotSessionBanner } from '../../components/bot-session-banner';
 import { AnimatedPressable } from '../../components/animated-pressable';
 import { useAuth } from '../../contexts/AuthContext';
+import { ThemeAvatar } from '../../components/ThemeAvatar';
+import { AvatarPickerModal } from '../../components/AvatarPickerModal';
+import { DEFAULT_AVATAR } from '../../constants/avatars';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
 
 function DesktopSidebar() {
@@ -18,12 +21,18 @@ function DesktopSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = React.useState(false);
+  const [currentAvatar, setCurrentAvatar] = React.useState<string>(DEFAULT_AVATAR);
+
+  useEffect(() => {
+    const saved = (typeof window !== 'undefined' && window.localStorage?.getItem('notia_user_avatar')) || user?.user_metadata?.avatar_url;
+    if (saved) setCurrentAvatar(saved);
+  }, [user]);
 
   const displayName = user?.user_metadata?.full_name || 
                       user?.user_metadata?.name || 
                       user?.user_metadata?.username || 
                       (user?.email ? user.email.split('@')[0] : 'User');
-  const initial = displayName.charAt(0).toUpperCase();
 
   const widthAnim = useSharedValue(260);
 
@@ -58,14 +67,12 @@ function DesktopSidebar() {
         }
       ]}
     >
-      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 0 }]}>
+      <View style={[styles.sidebarHeader, { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 0 }]}>
         <AnimatedPressable onPress={() => setCollapsed(prev => !prev)} style={styles.menuIconBtn} scaleTo={0.92}>
           <Menu size={22} color={theme.colors.text} />
         </AnimatedPressable>
 
-        <AnimatedPressable onPress={openSidebar} activeOpacity={0.8} style={[styles.avatarButton, { backgroundColor: theme.colors.primary }]}>
-          <Text style={{ color: theme.colors.onPrimary, fontWeight: '700', fontSize: 15 }}>{initial}</Text>
-        </AnimatedPressable>
+        <ThemeAvatar url={currentAvatar} size={36} onPress={() => setAvatarPickerVisible(true)} />
       </View>
       
       {!collapsed && (
@@ -108,6 +115,13 @@ function DesktopSidebar() {
           </AnimatedPressable>
         </Animated.View>
       )}
+
+      <AvatarPickerModal 
+        visible={avatarPickerVisible}
+        onClose={() => setAvatarPickerVisible(false)}
+        currentAvatarUrl={currentAvatar}
+        onSelectAvatar={(url) => setCurrentAvatar(url)}
+      />
     </Animated.View>
   );
 }
