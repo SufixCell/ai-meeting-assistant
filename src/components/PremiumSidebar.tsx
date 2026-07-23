@@ -14,6 +14,9 @@ import { AnimatedPressable } from './animated-pressable';
 import { useMeetings } from '../contexts/MeetingsContext';
 import { TrashModal } from './TrashModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+import { ThemeAvatar } from './ThemeAvatar';
+import { AvatarPickerModal } from './AvatarPickerModal';
+import { DEFAULT_AVATAR } from '../constants/avatars';
 
 const { width, height } = Dimensions.get('window');
 const SIDEBAR_WIDTH = Math.min(width * 0.85, 360);
@@ -28,7 +31,14 @@ export function PremiumSidebar() {
   const { meetings, trashedMeetings } = useMeetings();
   const [trashModalVisible, setTrashModalVisible] = React.useState(false);
   const [keyboardModalVisible, setKeyboardModalVisible] = React.useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = React.useState(false);
+  const [currentAvatar, setCurrentAvatar] = React.useState<string>(DEFAULT_AVATAR);
   const { width: windowWidth } = useWindowDimensions();
+
+  useEffect(() => {
+    const saved = (typeof window !== 'undefined' && window.localStorage?.getItem('notia_user_avatar')) || user?.user_metadata?.avatar_url;
+    if (saved) setCurrentAvatar(saved);
+  }, [user]);
 
   const isDesktopWeb = Platform.OS === 'web' && windowWidth >= 768;
 
@@ -105,18 +115,20 @@ export function PremiumSidebar() {
           
           {/* Header Profile */}
           <View style={styles.header}>
-            <View style={styles.avatarRow}>
-              <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-                <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '700' }}>{initial}</Text>
-              </View>
+            <TouchableOpacity 
+              activeOpacity={0.8} 
+              onPress={() => setAvatarPickerVisible(true)}
+              style={styles.avatarRow}
+            >
+              <ThemeAvatar url={currentAvatar} size={48} />
               <View style={styles.profileInfo}>
                 <Text variant="h3" style={{ fontWeight: '600' }}>{displayName}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                   <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 13 }}>AI Pro</Text>
-                  <Text style={{ color: theme.colors.textMuted, fontSize: 13, marginLeft: 8 }}>· Synced just now</Text>
+                  <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginLeft: 6 }}>• Tap avatar</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Stats - Live Dynamic Data */}
@@ -219,6 +231,12 @@ export function PremiumSidebar() {
 
       <TrashModal visible={trashModalVisible} onClose={() => setTrashModalVisible(false)} />
       <KeyboardShortcutsModal visible={keyboardModalVisible} onClose={() => setKeyboardModalVisible(false)} />
+      <AvatarPickerModal 
+        visible={avatarPickerVisible} 
+        onClose={() => setAvatarPickerVisible(false)} 
+        currentAvatarUrl={currentAvatar}
+        onSelectAvatar={(url) => setCurrentAvatar(url)}
+      />
     </View>
   );
 }

@@ -24,6 +24,9 @@ import { RenameModal } from '../../components/RenameModal';
 import { exportTranscript } from '../../utils/export';
 import { useMeetings } from '../../contexts/MeetingsContext';
 import { NotiaLogo } from '../../components/NotiaLogo';
+import { ThemeAvatar } from '../../components/ThemeAvatar';
+import { AvatarPickerModal } from '../../components/AvatarPickerModal';
+import { DEFAULT_AVATAR } from '../../constants/avatars';
 import { LayoutAnimation } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, interpolate, withRepeat, withSequence } from 'react-native-reanimated';
 
@@ -53,6 +56,14 @@ export default function HomeScreen() {
   const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameTargetTitle, setRenameTargetTitle] = useState<string>('');
+
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState<string>(DEFAULT_AVATAR);
+
+  useEffect(() => {
+    const saved = (typeof window !== 'undefined' && window.localStorage?.getItem('notia_user_avatar')) || user?.user_metadata?.avatar_url;
+    if (saved) setCurrentAvatar(saved);
+  }, [user]);
 
   const pageTransition = useSharedValue(0);
   const pulseAnim = useSharedValue(1);
@@ -248,9 +259,12 @@ export default function HomeScreen() {
                 </View>
               </View>
               
-              <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
-                <Search size={20} color={theme.colors.textMuted} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity onPress={() => {}} style={styles.topIconBtn}>
+                  <Search size={20} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+                <ThemeAvatar url={currentAvatar} size={36} onPress={() => setAvatarPickerVisible(true)} />
+              </View>
             </View>
 
             {/* Hero Greeting Section */}
@@ -383,6 +397,13 @@ export default function HomeScreen() {
             await renameMeeting(renameTargetId, newName.trim());
           }
         }}
+      />
+
+      <AvatarPickerModal
+        visible={avatarPickerVisible}
+        onClose={() => setAvatarPickerVisible(false)}
+        currentAvatarUrl={currentAvatar}
+        onSelectAvatar={(url) => setCurrentAvatar(url)}
       />
     </View>
   );
